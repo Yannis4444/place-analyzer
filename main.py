@@ -82,8 +82,8 @@ Commands:
         dh.set_args(args)
         dh.download_data()
 
-        for _ in dh.get_data_frames():
-            pass
+        for df in dh.get_data_frames():
+            print(df)
 
 
 if __name__ == '__main__':

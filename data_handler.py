@@ -2,15 +2,16 @@
 This module is responsible for everything regarding the actual r/place data.
 """
 import argparse
+import datetime
 import gzip
 import logging
 import os
 import threading
 import urllib
-from typing import Optional, List, Generator
+from collections import OrderedDict
+from typing import Optional, List, Generator, Dict
 
 import pandas as pd
-import requests
 from pandas import DataFrame
 from tqdm import trange, tqdm
 
@@ -53,8 +54,11 @@ class DataHandler:
 
         self.args: Optional['argparse.Namespace'] = None
 
-        # all csv data files
-        self.data_files: List[str] = []
+        # the start time from r/place
+        self.start_time = 1648817027.221
+
+        # all csv data files under their index
+        self.data_files: Dict[int, str] = OrderedDict()
 
     def set_args(self, args: 'argparse.Namespace'):
         """
@@ -83,10 +87,14 @@ class DataHandler:
 
         url_template = "https://placedata.reddit.com/data/canvas-history/2022_place_canvas_history-{:012d}.csv.gzip"
 
-        for i in trange(78, desc="Downloading data", mininterval=0):
+        # Why not change things up and put the data in a totally random order!?
+        # That seems like fun and wont annoy anyone working with the data - right?
+        # for i in trange(78, desc="Downloading data", mininterval=0):
+        for i in tqdm([1, 2, 3, 5, 6, 10, 11, 8, 13, 4, 9, 15, 12, 18, 14, 16, 20, 17, 23, 19, 21, 28, 7, 29, 30, 31, 32, 33, 25, 35, 36, 27, 22, 0, 40, 41, 24, 34, 44, 37, 38, 39, 48, 43, 26, 45, 46, 47, 42, 49, 50, 55, 52, 57, 58, 54, 61, 56, 63, 53, 59, 60, 62, 51, 70, 64, 65, 66, 72, 73, 74, 75, 76, 77, 67, 69, 68, 71],
+                      desc="Downloading data", mininterval=0):
             url = url_template.format(i)
             filename = "data/" + url.rsplit("/", 1)[-1].replace(".gzip", "")
-            self.data_files.append(filename)
+            self.data_files[i] = filename
 
             # skip if the file already exists
             if os.path.isfile(filename):
@@ -109,14 +117,57 @@ class DataHandler:
                 logging.error(f"Failed to download {filename}")
                 logging.exception(e)
 
-    def get_data_frames(self) -> Generator[DataFrame, None, None]:
+    def _str_to_time(self, time_str: str) -> float:
+        """
+        Converts the time strings as given by the data to the time since the start in seconds
+
+        :param time_str: The time string as given by the data
+        :return: The time since the start in seconds
+        """
+
+
+        try:
+            return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S.%f %Z").replace(tzinfo=datetime.timezone.utc).timestamp() - self.start_time
+        except ValueError:
+            return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S %Z").replace(tzinfo=datetime.timezone.utc).timestamp() - self.start_time
+
+    def _convert_data(self, df: DataFrame) -> DataFrame:
+        """
+        Converts a given data frame to a more usable format.
+        This will convert the time strings to the time since the start in seconds.
+
+        :param df: The original data frame
+        :return: The new data frame
+        """
+
+        df["time"] = df["timestamp"].apply(self._str_to_time)
+
+        return df
+
+    def get_data_frames(self, reversed=False) -> Generator[DataFrame, None, None]:
         """
         Creates pandas dataframes from the downloaded data.
         Each file will be a separate data frame as the Ram does not like the alternative.
         Will be empty if download_data was not called.
 
+        :param reversed: If reversed is set to True, the files will be returned in reverse order
+        :return: The pandas dataframes
+        """
+
+        for f in tqdm(list(self.data_files.values())[::-1] if reversed else self.data_files.values(), desc="Processing Data"):
+            yield self._convert_data(pd.read_csv(f, sep=","))
+
+    def get_data_frame(self, index: int):
+        """
+        Creates a pandas dataframe from the downloaded data.
+        The index specifies which of the csv files should be used
+
+        :param index: The index of the file to use
+        :raises: IndexError if no data file with the given index exists
         :return: The pandas dataframe
         """
 
-        for f in tqdm(self.data_files, desc="Processing Data"):
-            yield pd.read_csv(f, sep=',')
+        if index not in self.data_files:
+            raise IndexError(f"A data file with the index {index} does not exist.")
+
+        return self._convert_data(pd.read_csv(self.data_files[index], sep=","))
