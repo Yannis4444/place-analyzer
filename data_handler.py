@@ -7,10 +7,12 @@ import logging
 import os
 import threading
 import urllib
-from typing import Optional, List
+from typing import Optional, List, Generator
 
+import pandas as pd
 import requests
-from tqdm import trange
+from pandas import DataFrame
+from tqdm import trange, tqdm
 
 
 class DataHandler:
@@ -106,3 +108,15 @@ class DataHandler:
             except Exception as e:
                 logging.error(f"Failed to download {filename}")
                 logging.exception(e)
+
+    def get_data_frames(self) -> Generator[DataFrame, None, None]:
+        """
+        Creates pandas dataframes from the downloaded data.
+        Each file will be a separate data frame as the Ram does not like the alternative.
+        Will be empty if download_data was not called.
+
+        :return: The pandas dataframe
+        """
+
+        for f in tqdm(self.data_files, desc="Processing Data"):
+            yield pd.read_csv(f, sep=',')
