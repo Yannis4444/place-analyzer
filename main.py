@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+from typing import List
 
 import get_hash
 import validations
@@ -15,13 +16,17 @@ class PlaceAnalyzer:
         :return: The arguments
         """
 
+        # TODO: consistent naming of hash and user id
+
         parser = argparse.ArgumentParser(
             description='A script that can analyze different aspects from r/place and create statistics for users or communities.',
             usage=f"""{sys.argv[0]} <command> [OPTIONS]
 
 Commands:
-    gethash [OPTIONS]   Get the hashed identifier of a user
-                        as used in the data using a known pixel.
+  gethash [OPTIONS] Get the hashed identifier of a user
+                    as used in the data using a known pixel.
+  user [OPTIONS]    Analyze the activity of a user (or a
+                    group of users).
 """)
 
         parser.add_argument('command', help="Command to run")
@@ -88,18 +93,43 @@ Commands:
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
-        dh = self.init_data_handler(args)
+        self.init_data_handler(args)
 
+        # get the hash for the user
         print(get_hash.get_hash(args.pixel, args.time))
 
-        # print(args.pixel)
-        # print(args.time)
+    def user(self):
+        """
+        Analyze the activity of a user (or a
+        group of users).
+        """
 
-        # set the args in other parts
+        # get the options and set logging
+        parser = argparse.ArgumentParser(description='Analyzes the activity of the specified users. Users can be specified using their user-id/hash (see gethash command) or using a known pixel just like gethash.')
+        parser.add_argument('-u', '--user-id', required=False, type=str, help="The user-id/hash of a user to include", metavar="<user>", nargs='*')
+        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>", nargs='*')
+        self.add_default_options(parser)
+        args = parser.parse_args(sys.argv[2:])
+        self.set_logging(args.verbose)
+        dh = self.init_data_handler(args)
 
-        # for df in dh.get_data_frames():
-        #     print(df)
+        # get all hashes to be used
+        user_ids: List[str] = args.user_id or []
+        if args.pixel is not None:
+            print("Getting user ids from known pixels")
+            user_ids += get_hash.get_hashes(args.pixel)
 
+        print("Collecting data for the following user ids:")
+        for user_id in user_ids:
+            print(f" - {user_id}")
+
+        # TODO: weight for users -> Then this can be used for other stuff as well
+
+        n = 0
+        for df in dh.get_data_frames(user_ids=user_ids):
+            n += len(df)
+
+        print(n)
 
 if __name__ == '__main__':
     PlaceAnalyzer()

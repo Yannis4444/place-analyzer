@@ -125,7 +125,6 @@ class DataHandler:
         :return: The time since the start in seconds
         """
 
-
         try:
             return datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S.%f %Z").replace(tzinfo=datetime.timezone.utc).timestamp() - self.start_time
         except ValueError:
@@ -144,25 +143,28 @@ class DataHandler:
 
         return df
 
-    def get_data_frames(self, reversed=False) -> Generator[DataFrame, None, None]:
+    def get_data_frames(self, user_ids: Optional[List[str]]=None, reversed=False) -> Generator[DataFrame, None, None]:
         """
         Creates pandas dataframes from the downloaded data.
         Each file will be a separate data frame as the Ram does not like the alternative.
         Will be empty if download_data was not called.
 
+        :param user_ids: An optional list of user ids to filter the results for
         :param reversed: If reversed is set to True, the files will be returned in reverse order
         :return: The pandas dataframes
         """
 
+        # TODO: set text for progress bar
         for i in tqdm(list(self.data_files)[::-1] if reversed else self.data_files, desc="Processing Data"):
-            yield self.get_data_frame(i)
+            yield self.get_data_frame(i, user_ids=user_ids)
 
-    def get_data_frame(self, index: int):
+    def get_data_frame(self, index: int, user_ids: Optional[List[str]]=None):
         """
         Creates a pandas dataframe from the downloaded data.
         The index specifies which of the csv files should be used
 
         :param index: The index of the file to use
+        :param user_ids: An optional list of user ids to filter the results for
         :raises: IndexError if no data file with the given index exists
         :return: The pandas dataframe
         """
@@ -173,5 +175,9 @@ class DataHandler:
         df = self._convert_data(pd.read_csv(self.data_files[index], sep=","))
 
         df["coordinate"] = df["coordinate"].astype("str")
+
+        # select only specified user ids
+        if user_ids is not None:
+            df = df.loc[df["user_id"].isin(user_ids)]
 
         return df
