@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 
+import get_hash
 import validations
 from data_handler import DataHandler
 
@@ -60,6 +61,20 @@ Commands:
                 format='[%(asctime)s] %(levelname)-8s %(name)-12s %(message)s',
             )
 
+    def init_data_handler(self, args: argparse.Namespace) -> DataHandler:
+        """
+        Initialises the data handler
+
+        :param: The command line parameters
+        :return: The data handler
+        """
+
+        dh = DataHandler.instance()
+        dh.set_args(args)
+        dh.download_data()
+
+        return dh
+
     def gethash(self):
         """
         Get the hashed identifier of a user
@@ -73,17 +88,17 @@ Commands:
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
+        dh = self.init_data_handler(args)
 
-        print(args.pixel)
-        print(args.time)
+        print(get_hash.get_hash(args.pixel, args.time))
+
+        # print(args.pixel)
+        # print(args.time)
 
         # set the args in other parts
-        dh = DataHandler.instance()
-        dh.set_args(args)
-        dh.download_data()
 
-        for df in dh.get_data_frames():
-            print(df)
+        # for df in dh.get_data_frames():
+        #     print(df)
 
 
 if __name__ == '__main__':

@@ -140,7 +140,7 @@ class DataHandler:
         :return: The new data frame
         """
 
-        df["time"] = df["timestamp"].apply(self._str_to_time)
+        df["time"] = df["timestamp"].apply(self._str_to_time).astype("int")
 
         return df
 
@@ -154,8 +154,8 @@ class DataHandler:
         :return: The pandas dataframes
         """
 
-        for f in tqdm(list(self.data_files.values())[::-1] if reversed else self.data_files.values(), desc="Processing Data"):
-            yield self._convert_data(pd.read_csv(f, sep=","))
+        for i in tqdm(list(self.data_files)[::-1] if reversed else self.data_files, desc="Processing Data"):
+            yield self.get_data_frame(i)
 
     def get_data_frame(self, index: int):
         """
@@ -170,4 +170,8 @@ class DataHandler:
         if index not in self.data_files:
             raise IndexError(f"A data file with the index {index} does not exist.")
 
-        return self._convert_data(pd.read_csv(self.data_files[index], sep=","))
+        df = self._convert_data(pd.read_csv(self.data_files[index], sep=","))
+
+        df["coordinate"] = df["coordinate"].astype("str")
+
+        return df

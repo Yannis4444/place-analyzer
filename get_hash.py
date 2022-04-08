@@ -1,6 +1,7 @@
 """
 Can be used to get the user hash from a pixel and time
 """
+import logging
 from typing import Tuple, List, Dict, Optional
 
 from pandas import DataFrame
@@ -8,7 +9,7 @@ from pandas import DataFrame
 from data_handler import DataHandler
 
 
-def get_hash(pixel: Tuple[int, int], time: int) -> str:
+def get_hash(pixel: Tuple[int, int], time: int) -> Optional[str]:
     """
     Gets the hash for a user by checking which hash was the last one
     that changed the given pixel at the specified time.
@@ -17,10 +18,13 @@ def get_hash(pixel: Tuple[int, int], time: int) -> str:
 
     :param pixel: The pixel to check
     :param time: The time from which to get the last edit in seconds
-    :return: The hash
+    :return: The hash (None if none is found)
     """
 
-    pass
+    hashes = get_hashes([(pixel, time)])
+    if hashes:
+        return hashes[0]
+
 
 def get_hashes(pixel_times: List[Tuple[Tuple[int, int], int]]) -> List[str]:
     """
@@ -32,10 +36,22 @@ def get_hashes(pixel_times: List[Tuple[Tuple[int, int], int]]) -> List[str]:
     :param pixel_times: A list of tuples with a pixel (tuple) and a time in seconds each.
     :return: A list of the found hashes
     """
-    return
 
-    hashes: Dict[Tuple[Tuple[int, int], int], Optional[str]] = {(): None for pt in pixel_times}
+    hashes: List[str] = []
 
     for df in DataHandler.instance().get_data_frames(reversed=True):
-        hash_missing = False
+        delete_indexes = []
+        for i, (pixel, time) in enumerate(pixel_times):
+            row = df.loc[(df["coordinate"] == f"{pixel[0]},{pixel[1]}") & (df["time"] <= time)].tail(1)
+            if len(row):
+                logging.info(f"{row['user_id'].item()} placed {pixel} after {row['time'].item()} s ({row['timestamp'].item()})")
+                delete_indexes.append(i)
+                hashes.append(row["user_id"].item())
 
+        pixel_times = [pt for i, pt in enumerate(pixel_times) if i not in delete_indexes]
+
+        if not pixel_times:
+            return hashes
+
+    logging.warning(f"No Hashes found for {pixel_times}")
+    return hashes
