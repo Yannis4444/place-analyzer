@@ -6,6 +6,7 @@ from typing import List
 import get_hash
 import validations
 from data_handler import DataHandler
+from image_creator import ImageCreator
 
 
 class PlaceAnalyzer:
@@ -125,11 +126,17 @@ Commands:
 
         # TODO: weight for users -> Then this can be used for other stuff as well
 
+        ic = ImageCreator(background_image="/home/yannis/git/place-analyzer/resources/final_place.png", background_color="#000", output_file="resources/test.png")
+
         n = 0
         for df in dh.get_data_frames(user_ids=user_ids):
             n += len(df)
 
+            for pixel in df["coordinate"]:
+                ic.set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+
         print(n)
+        ic.save()
 
 if __name__ == '__main__':
     PlaceAnalyzer()

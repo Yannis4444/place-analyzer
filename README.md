@@ -8,4 +8,5 @@ A script that can analyze different aspects from r/place and create statistics f
 pip install requests
 pip install tqdm
 pip install pandas
+pip install pillow
 ```
