@@ -107,8 +107,14 @@ Commands:
 
         # get the options and set logging
         parser = argparse.ArgumentParser(description='Analyzes the activity of the specified users. Users can be specified using their user-id/hash (see gethash command) or using a known pixel just like gethash.')
-        parser.add_argument('-u', '--user-id', required=False, type=str, help="The user-id/hash of a user to include", metavar="<user>", nargs='*')
-        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>", nargs='*')
+        parser.add_argument('-u', '--user-id', required=False, type=str, action="append", help="The user-id/hash of a user to include", metavar="<user>")
+        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
+        parser.add_argument('-o', '--output', required=False, type=str, help="A filename for the generated png image. The user id will be appended to the name if the data is not combined.", default="out/user_canvas.png")
+        parser.add_argument('-i', '--individual', required=False, action='count', default=0, help="Generate individual canvases for the given users.")
+        parser.add_argument('-c', '--combine', required=False, action='count', default=0, help="Combine the given users into one image.")
+        parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png")
+        parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1)
+        parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
@@ -126,17 +132,56 @@ Commands:
 
         # TODO: weight for users -> Then this can be used for other stuff as well
 
-        ic = ImageCreator(background_image="/home/yannis/git/place-analyzer/resources/final_place.png", background_color="#000", output_file="resources/test.png")
+        # the individual image creators
+        if args.individual:
+            image_creators = {
+                user_id: ImageCreator(
+                    background_image=args.background_image,
+                    background_image_opacity=args.background_image_opacity,
+                    background_color=args.background_color,
+                    output_file="{}_{}.{}".format(args.output.rsplit(".", 1)[0], user_id, args.output.rsplit(".", 1)[1])
+                ) for user_id in user_ids
+            }
 
-        n = 0
+        if args.combine:
+            combined_image_creator = ImageCreator(
+                background_image=args.background_image,
+                background_image_opacity=args.background_image_opacity,
+                background_color=args.background_color,
+                output_file="{}_combined.{}".format(*args.output.rsplit(".", 1))
+            )
+
+        total_pixels = 0
+        user_pixels = {user_id: 0 for user_id in user_ids}
         for df in dh.get_data_frames(user_ids=user_ids):
-            n += len(df)
+            total_pixels += len(df)
 
-            for pixel in df["coordinate"]:
-                ic.set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+            for row in df[["user_id", "coordinate"]].itertuples():
+                user_id = str(row[1])
+                pixel = str(row[2])
 
-        print(n)
-        ic.save()
+                user_pixels[user_id] += 1
+
+                if args.combine:
+                    combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+
+                if args.individual and user_id in image_creators:
+                    image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+
+        print(f"Pixels per user:")
+        print("\n".join(
+            f" - {user_id}: {n}" for user_id, n in user_pixels.items()
+        ))
+        print(f"Combined number of pixels for all specified users: {total_pixels}")
+
+        logging.info("saving images")
+
+        if args.combine:
+            combined_image_creator.save()
+
+        if args.individual:
+            for ic in image_creators.values():
+                ic.save()
 
 if __name__ == '__main__':
     PlaceAnalyzer()

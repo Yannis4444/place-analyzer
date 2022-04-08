@@ -169,6 +169,8 @@ class DataHandler:
         :return: The pandas dataframe
         """
 
+        user_ids = list(dict.fromkeys(user_ids))
+
         if index not in self.data_files:
             raise IndexError(f"A data file with the index {index} does not exist.")
 

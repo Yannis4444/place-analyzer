@@ -1,6 +1,7 @@
 """
 Can create images from the collected data
 """
+import logging
 import os
 
 from PIL import Image
@@ -26,10 +27,14 @@ class ImageCreator:
         :param output_file: The file to save the result to.
         """
 
+        logging.info(f"Creating image creator: {background_image}, {background_image_opacity}, {background_color}, {output_file}")
+
         self.background_image = background_image
         self.background_image_opacity = background_image_opacity
         self.background_color = background_color
         self.output_file = output_file
+
+        os.makedirs(output_file.rsplit("/", 1)[0], exist_ok=True)
 
         self.image = Image.new("RGBA", (2000, 2000), background_color)
 
