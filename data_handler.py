@@ -143,7 +143,8 @@ class DataHandler:
         :return: The new data frame
         """
 
-        df["time"] = df["timestamp"].apply(self._str_to_time).astype("int")
+        if "time" not in df.columns:
+            df["time"] = df["timestamp"].apply(self._str_to_time).astype("int")
 
         return df
 
@@ -176,7 +177,8 @@ class DataHandler:
         :return: The pandas dataframe
         """
 
-        user_ids = list(dict.fromkeys(user_ids))
+        if user_ids is not None:
+            user_ids = list(dict.fromkeys(user_ids))
 
         if index not in self.data_files:
             raise IndexError(f"A data file with the index {index} does not exist.")
@@ -184,6 +186,7 @@ class DataHandler:
         df = self._convert_data(pd.read_csv(self.data_files[index], sep=","))
 
         df["coordinate"] = df["coordinate"].astype("str")
+        df["time"] = df["time"].astype("int")
 
         # select only specified user ids
         if user_ids is not None:
