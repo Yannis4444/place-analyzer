@@ -58,6 +58,6 @@ class ImageCreator:
         """
         Saves the file to the previously specified output_file
         """
-        # TODO: directory?
+
         self.image.save(self.output_file, format="png")
         # self.image.show()

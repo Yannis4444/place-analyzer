@@ -1,7 +1,7 @@
 import argparse
 import logging
 import sys
-from typing import List
+from typing import List, Optional, Dict
 
 import get_hash
 import validations
@@ -112,9 +112,9 @@ Commands:
         parser.add_argument('-o', '--output', required=False, type=str, help="A filename for the generated png image. The user id will be appended to the name if the data is not combined.", default="out/user_canvas.png")
         parser.add_argument('-i', '--individual', required=False, action='count', default=0, help="Generate individual canvases for the given users.")
         parser.add_argument('-c', '--combine', required=False, action='count', default=0, help="Combine the given users into one image.")
-        parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png")
-        parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1)
-        parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000")
+        parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
+        parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
+        parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
@@ -133,6 +133,7 @@ Commands:
         # TODO: weight for users -> Then this can be used for other stuff as well
 
         # the individual image creators
+        image_creators: Optional[Dict[str, ImageCreator]] = None
         if args.individual:
             image_creators = {
                 user_id: ImageCreator(
@@ -143,6 +144,7 @@ Commands:
                 ) for user_id in user_ids
             }
 
+        combined_image_creator: Optional[ImageCreator] = None
         if args.combine:
             combined_image_creator = ImageCreator(
                 background_image=args.background_image,
@@ -168,6 +170,7 @@ Commands:
                 if args.individual and user_id in image_creators:
                     image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
 
+        print("-"*20)
         print(f"Pixels per user:")
         print("\n".join(
             f" - {user_id}: {n}" for user_id, n in user_pixels.items()
