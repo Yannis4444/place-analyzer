@@ -116,11 +116,24 @@ Commands:
         parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
         parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
         parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
-        parser.add_argument('-h', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
+        parser.add_argument('-g', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
+
+        # temporary data check
+        # last_time = -1
+        # for i, df in enumerate(dh.get_data_frames()):
+        #     for row in df[["time"]].itertuples():
+        #         t = int(row[1])
+        #     # for row in pd.concat([df[["time"]].head(1), df[["time"]].tail(1)]).itertuples():
+        #         if not last_time <= t:
+        #             print(i, "FUCK", last_time, t)
+        #         # else:
+        #         #     print(i, "YAY ", last_time, t)
+        #         last_time = t
+        # exit()
 
         # get all hashes to be used
         user_ids: List[str] = args.user_id or []
@@ -160,17 +173,18 @@ Commands:
         for df in dh.get_data_frames(user_ids=user_ids):
             total_pixels += len(df)
 
-            for row in df[["user_id", "coordinate"]].itertuples():
+            for row in df[["user_id", "pixel_color", "coordinate"]].itertuples():
                 user_id = str(row[1])
-                pixel = str(row[2])
+                color = args.highlight_color or str(row[2])
+                pixel = str(row[3])
 
                 user_pixels[user_id] += 1
 
                 if args.combine:
-                    combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+                    combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], color)
 
                 if args.individual and user_id in image_creators:
-                    image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], (255, 255, 0, 255))
+                    image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], color)
 
         print("-"*20)
         print(f"Pixels per user:")
