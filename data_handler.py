@@ -10,6 +10,7 @@ import threading
 import urllib
 from collections import OrderedDict
 from typing import Optional, List, Generator, Dict
+from urllib.request import urlopen
 
 import pandas as pd
 from pandas import DataFrame
@@ -56,6 +57,8 @@ class DataHandler:
 
         # the start time from r/place
         self.start_time = 1648817027.221
+        self.void_time = 1649112460.157
+        self.end_time = 1649116847.206
 
         # all csv data files under their index
         self.data_files: Dict[int, str] = OrderedDict()
@@ -89,9 +92,9 @@ class DataHandler:
 
         # Why not change things up and put the data in a totally random order!?
         # That seems like fun and wont annoy anyone working with the data - right?
-        # for i in trange(78, desc="Downloading data", mininterval=0):
-        for i in tqdm([1, 2, 3, 5, 6, 10, 11, 8, 13, 4, 9, 15, 12, 18, 14, 16, 20, 17, 23, 19, 21, 28, 7, 29, 30, 31, 32, 33, 25, 35, 36, 27, 22, 0, 40, 41, 24, 34, 44, 37, 38, 39, 48, 43, 26, 45, 46, 47, 42, 49, 50, 55, 52, 57, 58, 54, 61, 56, 63, 53, 59, 60, 62, 51, 70, 64, 65, 66, 72, 73, 74, 75, 76, 77, 67, 69, 68, 71],
-                      desc="Downloading data", mininterval=0):
+        for i in trange(79, desc="Downloading data", mininterval=0):
+        # for i in tqdm([1, 2, 3, 5, 6, 10, 11, 8, 13, 4, 9, 15, 12, 18, 14, 16, 20, 17, 23, 19, 21, 28, 7, 29, 30, 31, 32, 33, 25, 35, 36, 27, 22, 0, 40, 41, 24, 34, 44, 37, 38, 39, 48, 43, 26, 45, 46, 47, 42, 49, 50, 55, 52, 57, 58, 54, 61, 56, 63, 53, 59, 60, 62, 51, 70, 64, 65, 66, 72, 73, 74, 75, 76, 77, 67, 69, 68, 71],
+        #               desc="Downloading data", mininterval=0):
             url = url_template.format(i)
             filename = "data/" + url.rsplit("/", 1)[-1].replace(".gzip", "")
             self.data_files[i] = filename
@@ -116,6 +119,7 @@ class DataHandler:
             except Exception as e:
                 logging.error(f"Failed to download {filename}")
                 logging.exception(e)
+                exit(-1)
 
     def _str_to_time(self, time_str: str) -> float:
         """
@@ -143,28 +147,31 @@ class DataHandler:
 
         return df
 
-    def get_data_frames(self, user_ids: Optional[List[str]]=None, reversed=False) -> Generator[DataFrame, None, None]:
+    def get_data_frames(self, user_ids: Optional[List[str]]=None, include_void=True, reversed=False) -> Generator[DataFrame, None, None]:
         """
         Creates pandas dataframes from the downloaded data.
         Each file will be a separate data frame as the Ram does not like the alternative.
         Will be empty if download_data was not called.
 
         :param user_ids: An optional list of user ids to filter the results for
-        :param reversed: If reversed is set to True, the files will be returned in reverse order
+        :param include_void: If the pixels from the white void should be kept
+        :param reversed: If reversed is set to True, the files and data will be returned in reverse order
         :return: The pandas dataframes
         """
 
         # TODO: set text for progress bar
         for i in tqdm(list(self.data_files)[::-1] if reversed else self.data_files, desc="Processing Data"):
-            yield self.get_data_frame(i, user_ids=user_ids)
+            yield self.get_data_frame(i, user_ids=user_ids, reversed=reversed)
 
-    def get_data_frame(self, index: int, user_ids: Optional[List[str]]=None):
+    def get_data_frame(self, index: int, user_ids: Optional[List[str]]=None, include_void=True, reversed=False):
         """
         Creates a pandas dataframe from the downloaded data.
         The index specifies which of the csv files should be used
 
         :param index: The index of the file to use
         :param user_ids: An optional list of user ids to filter the results for
+        :param include_void: If the pixels from the white void should be kept
+        :param reversed: If reversed is set to True, the data will be returned in reverse order
         :raises: IndexError if no data file with the given index exists
         :return: The pandas dataframe
         """
@@ -182,4 +189,10 @@ class DataHandler:
         if user_ids is not None:
             df = df.loc[df["user_id"].isin(user_ids)]
 
-        return df
+        if not include_void:
+            df = df.loc[df["time"] < self.void_time - self.start_time]
+
+        if reversed:
+            return df.iloc[::-1]
+        else:
+            return df

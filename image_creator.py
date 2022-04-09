@@ -44,13 +44,26 @@ class ImageCreator:
 
             self.image = Image.blend(self.image, bg, background_image_opacity)
 
-    def set_pixel(self, x: int, y: int, color: Tuple[int, int, int] | Tuple[int, int, int, int]):
+    def hex_to_rgb(self, hex_color) -> Tuple[int, int, int]:
+        """
+        Converts a hex color (without alpha channel) to a tuple
+
+        :param hex_color: The hex color
+        :return: The tuple
+        """
+
+        return tuple(int(hex[i:i+2], 16) for i in (1, 3, 5))
+
+    def set_pixel(self, x: int, y: int, color: Tuple[int, int, int] | Tuple[int, int, int, int] | str):
         """
         Sets the color of a specified pixel
         :param x: The x coordinate
         :param y: The y coordinate
-        :param color: The color as a tuple (optional alpha channel)
+        :param color: The color as a tuple (optional alpha channel) or string
         """
+
+        if type(color) == str:
+            color = self.hex_to_rgb(color)
 
         self.image.putpixel((x, y), color)
 
