@@ -156,6 +156,7 @@ Commands:
             ) for user_id in user_ids
         }
 
+        # TODO: only if multiple
         # combined image creator
         combined_image_creator = ImageCreator(
             background_image=args.background_image,

@@ -32,9 +32,12 @@ This will also allow you to use InfluxQL to query for other data.
 If you do not have an existing InfluxDB available, one can easily be started using the included `docker-compose.yml`.
 If you use an existing installation, you might need to set `max-values-per-tag = 0` and
 `max-series-per-database = 0` to allow for the user_ids as tags.
+Also keep an eye on the memory usage of the container.
+You can edit the limit in the `docker-compose.yml`.
 
 To use the InfluxDB as a data source, simply add `-i user:password@host:port`
 (`-i admin:admin@localhost:8086` for the included `docker-compose.yml`) to the end of your command.
+Note that this will take some time to write all the data to the InfluxDB the first time (almost 2 h for me).
 
 Using InfluxDB with the script will create a `place_pixels` database with a `pixels` measurement.
 The measurement will consist of the following:
