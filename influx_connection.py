@@ -18,7 +18,8 @@ class InfluxConnection:
                  port: int = 8086,
                  username: str = 'root',
                  password: str = 'root',
-                 database: str = 'place_pixels'):
+                 database: str = 'place_pixels',
+                 timeout: int = 600):
         """
         Creates a new connection object.
         """
@@ -31,13 +32,14 @@ class InfluxConnection:
         :param port: port to connect to InfluxDB, defaults to 8086
         :param username: user to connect, defaults to 'root'
         :param password: password of the user, defaults to 'root'
-        :param database: database name to connect to, defaults to None, defaults to 'measurements'
+        :param database: database name to connect to, defaults to None, defaults to 'place_pixels'
+        :param timeout: The timeout for the client
         """
 
         logging.info(f"Connecting to {database} on {host}:{port}")
 
         # create the connection
-        self._client = InfluxDBClient(host=host, port=port, username=username, password=password, database=database)
+        self._client = InfluxDBClient(host=host, port=port, username=username, password=password, database=database, timeout=timeout)
 
         # create the database and switch to it
         if database not in self._client.get_list_database():
@@ -135,20 +137,13 @@ class InfluxConnection:
             }
         }
 
+        self._cached_measurements.append(data)
+
         if not write_now:
-            # just add this to the list to be saved later and return True
-            self._cached_measurements.append(data)
             return True
 
-        if self._cached_measurements:
-            # There are cached measurements to be saved together with this one
-            result = self._client.write_points(self._cached_measurements + [data])
-            if result:
-                self._cached_measurements = []
-            return result
-
         # just save this one
-        return self._client.write_points([data])
+        return self.write_cached_points()
 
     def write_cached_points(self, batch_size=1000):
         """
@@ -160,7 +155,14 @@ class InfluxConnection:
 
         logging.info(f"Writing {len(self._cached_measurements)} cached points")
 
-        result = self._client.write_points(self._cached_measurements, batch_size=10000)
+        try:
+            result = self._client.write_points(self._cached_measurements, time_precision="ms", batch_size=10000)
+        except Exception as e:
+            # wait ten seconds and try again
+            logging.warning(f"Writing points failed. Trying again: {e}")
+            time.sleep(10)
+            return self.write_cached_points(batch_size=batch_size)
+
         if result:
             self._cached_measurements = []
             logging.info("Done writing points")
@@ -195,8 +197,14 @@ class InfluxConnection:
             query += " OR ".join([f"user_id = '{i}'" for i in user_ids])
             query += ")"
 
-        if not include_void:
+        if pixel is not None:
             if user_ids is not None:
+                query += " AND"
+
+            query += " x = {} AND y = {}".format(*pixel.split(","))
+
+        if not include_void:
+            if user_ids is not None or pixel is not None:
                 query += " AND"
 
             from data_handler import DataHandler
