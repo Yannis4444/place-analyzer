@@ -4,6 +4,7 @@ Can be used to get the user hash from a pixel and time
 import logging
 from typing import Tuple, List, Dict, Optional
 
+import tqdm
 from pandas import DataFrame
 
 from data_handler import DataHandler
@@ -39,19 +40,30 @@ def get_hashes(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
 
     hashes: List[str] = []
 
-    for df in DataHandler.instance().get_data_frames(reversed=True, progress_label="Searching user hash"):
-        delete_indexes = []
-        for i, (pixel, time) in enumerate(pixel_times):
-            row = df.loc[(df["coordinate"] == f"{pixel[0]},{pixel[1]}") & (df["time"] <= time)].tail(1)
-            if len(row):
-                logging.info(f"{row['user_id'].item()} placed {pixel} after {row['time'].item()} s ({row['timestamp'].item()})")
-                delete_indexes.append(i)
-                hashes.append(row["user_id"].item())
+    dh = DataHandler.instance()
 
-        pixel_times = [pt for i, pt in enumerate(pixel_times) if i not in delete_indexes]
+    if dh.influx_connection is None:
+        for df in dh.get_data_frames(reversed=True, progress_label="Searching user hash"):
+            delete_indexes = []
+            for i, (pixel, time) in enumerate(pixel_times):
+                row = df.loc[(df["coordinate"] == f"{pixel[0]},{pixel[1]}") & (df["time"] <= time)].tail(1)
+                if len(row):
+                    logging.info(f"{row['user_id'].item()} placed {pixel} after {row['time'].item()} s ({row['timestamp'].item()})")
+                    delete_indexes.append(i)
+                    hashes.append(row["user_id"].item())
 
-        if not pixel_times:
-            return hashes
+            pixel_times = [pt for i, pt in enumerate(pixel_times) if i not in delete_indexes]
 
-    logging.warning(f"No Hashes found for {pixel_times}")
+            if not pixel_times:
+                return hashes
+
+        logging.warning(f"No Hashes found for {pixel_times}")
+
+    else:
+        for i, (pixel, time) in tqdm.tqdm(enumerate(pixel_times), progress_label="Searching user hash"):
+            try:
+                hashes.append(dh.influx_connection.query(f"SELECT last(user_id) as user_id from \"pixels\" WHERE pixel='{pixel[0]},{pixel[0]}' AND time <= time").raw["values"][-1][-1])
+            except (IndexError, KeyError):
+                logging.warning(f"No Hash found for {pixel} - {pixel}")
+
     return hashes
