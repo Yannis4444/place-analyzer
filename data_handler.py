@@ -260,7 +260,7 @@ class DataHandler:
         if user_ids is not None:
             df = df.loc[df["user_id"].isin(user_ids)]
 
-        if user_ids is not None:
+        if pixel is not None:
             df = df.loc[df["coordinate"] == pixel]
 
         if not include_void:

@@ -167,20 +167,17 @@ Commands:
 
         total_pixels = 0
         user_pixels = {user_id: 0 for user_id in user_ids}
-        for df in dh.get_data_frames(user_ids=user_ids):
-            total_pixels += len(df)
 
-            for row in df[["user_id", "pixel_color", "coordinate"]].itertuples():
-                user_id = str(row[1])
-                color = args.highlight_color or str(row[2])
-                pixel = str(row[3])
+        for time, user_id, color, pixel in dh.get_data(user_ids=user_ids):
+            total_pixels += 1
 
-                user_pixels[user_id] += 1
+            user_pixels[user_id] += 1
 
-                combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], color)
+            combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
 
-                if user_id in image_creators:
-                    image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], color)
+            if user_id in image_creators:
+                image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
+
 
         print("-"*20)
         print(f"Pixels per user:")
