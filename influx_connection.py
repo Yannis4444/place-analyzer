@@ -84,17 +84,31 @@ class InfluxConnection:
         :return: True, if the operation is successful
         """
 
-        # TODO: duplicate timestamps result in loss of data
+        x, y, *r = pixel.split(",")
+
+        x = int(x)
+        y = int(y)
+
+        if r:
+            for i in range(x, int(r[0]) + 1):
+                for j in range(y, int(r[1]) + 1):
+                    self.write_pixel(time, user_id, f"{i},{j}", color, write_now=False)
+
+            if write_now:
+                self.write_cached_points()
 
         # prepare the data to be sent to the InfluxDB
         data = {
             "measurement": "pixels",
             "tags": {
-                "user_id": user_id
+                "user_id": user_id,
+                "x": x,
+                "y": y,
+                "color": color
             },
             "time": datetime.datetime.fromtimestamp(time, tz=datetime.timezone.utc),
             "fields": {
-                "pixel": pixel,
+                # "pixel": pixel,
                 "color": color
                 # "user_id": user_id
             }

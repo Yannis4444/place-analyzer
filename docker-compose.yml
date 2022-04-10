@@ -1,17 +1,6 @@
 version: "3"
 
 services:
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    restart: always
-    ports:
-      - 3000:3000
-    networks:
-      - monitoring
-    volumes:
-      - grafana-volume:/var/lib/grafana
-
   influxdb:
     image: influxdb:1.8
     container_name: influxdb
@@ -21,7 +10,7 @@ services:
     networks:
       - monitoring
     volumes:
-      - influxdb-storage:/var/lib/influxdb
+      - influxdb-data:/var/lib/influxdb
     environment:
       - INFLUXDB_DB=db0
       - INFLUXDB_ADMIN_USER=admin
@@ -39,12 +28,11 @@ services:
     networks:
       - monitoring
     volumes:
-      - chronograf_data:/var/lib/chronograf
+      - chronograf-data:/var/lib/chronograf
 
 networks:
   monitoring:
 
 volumes:
-  grafana-volume:
-  influxdb-storage:
-  chronograf_data:
+  influxdb-data:
+  chronograf-data:
