@@ -152,8 +152,6 @@ class DataHandler:
                 logging.exception(e)
                 exit(-1)
 
-        # TODO: remove
-        new_data = True
         if new_data and self.influx_connection is not None:
             for df in self.get_data_frames(progress_label="writing to InfluxDB"):
                 for row in df[["user_id", "pixel_color", "coordinate", "time"]].itertuples():
