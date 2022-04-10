@@ -43,11 +43,12 @@ Commands:
 
     def add_default_options(self, parser: argparse.ArgumentParser):
         """
-        Adds default arguments to a parser like verbose
+        Adds default arguments to a parser like verbose and influx
 
         :param parser: The parser to add the options to
         """
 
+        parser.add_argument('-i', '--influx', required=False, help="Use InfluxDB for the data. This will greatly increase the performance. A new \"place_pixels\" database will be created. Format: user:password@host:port")
         parser.add_argument('-v', '--verbose', required=False, action='count', default=0, help="Enable verbose output (-vv for debug)")
 
     def set_logging(self, verbose: int):
@@ -94,10 +95,10 @@ Commands:
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
-        self.init_data_handler(args)
+        dh = self.init_data_handler(args)
 
         # get the hash for the user
-        print(get_hash.get_hash(args.pixel, args.time))
+        print(get_hash.get_hash(args.pixel, dh.time_to_timestamp(args.time)))
 
     def user(self):
         """
@@ -111,8 +112,6 @@ Commands:
         parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
         parser.add_argument('-d', '--include-void', required=False, action='count', default=0, help="Include The pixels placed as a part of the white void at the end.")
         parser.add_argument('-o', '--output', required=False, type=str, help="A filename for the generated png image. The user id will be appended to the name if the data is not combined.", default="out/user_canvas.png")
-        parser.add_argument('-i', '--individual', required=False, action='count', default=0, help="Generate individual canvases for the given users.")
-        parser.add_argument('-c', '--combine', required=False, action='count', default=0, help="Combine the given users into one image.")
         parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
         parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
         parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
@@ -139,7 +138,7 @@ Commands:
         user_ids: List[str] = args.user_id or []
         if args.pixel is not None:
             print("Getting user ids from known pixels")
-            user_ids += get_hash.get_hashes(args.pixel)
+            user_ids += get_hash.get_hashes([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
 
         print("Collecting data for the following user ids:")
         for user_id in user_ids:
@@ -148,25 +147,22 @@ Commands:
         # TODO: weight for users -> Then this can be used for other stuff as well
 
         # the individual image creators
-        image_creators: Optional[Dict[str, ImageCreator]] = None
-        if args.individual:
-            image_creators = {
-                user_id: ImageCreator(
-                    background_image=args.background_image,
-                    background_image_opacity=args.background_image_opacity,
-                    background_color=args.background_color,
-                    output_file="{}_{}.{}".format(args.output.rsplit(".", 1)[0], user_id, args.output.rsplit(".", 1)[1])
-                ) for user_id in user_ids
-            }
-
-        combined_image_creator: Optional[ImageCreator] = None
-        if args.combine:
-            combined_image_creator = ImageCreator(
+        image_creators = {
+            user_id: ImageCreator(
                 background_image=args.background_image,
                 background_image_opacity=args.background_image_opacity,
                 background_color=args.background_color,
-                output_file="{}_combined.{}".format(*args.output.rsplit(".", 1))
-            )
+                output_file="{}_{}.{}".format(args.output.rsplit(".", 1)[0], user_id, args.output.rsplit(".", 1)[1])
+            ) for user_id in user_ids
+        }
+
+        # combined image creator
+        combined_image_creator = ImageCreator(
+            background_image=args.background_image,
+            background_image_opacity=args.background_image_opacity,
+            background_color=args.background_color,
+            output_file="{}_combined.{}".format(*args.output.rsplit(".", 1))
+        )
 
         total_pixels = 0
         user_pixels = {user_id: 0 for user_id in user_ids}
@@ -180,10 +176,9 @@ Commands:
 
                 user_pixels[user_id] += 1
 
-                if args.combine:
-                    combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], color)
+                combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], color)
 
-                if args.individual and user_id in image_creators:
+                if user_id in image_creators:
                     image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], color)
 
         print("-"*20)
@@ -195,12 +190,10 @@ Commands:
 
         logging.info("saving images")
 
-        if args.combine:
-            combined_image_creator.save()
+        combined_image_creator.save()
 
-        if args.individual:
-            for ic in image_creators.values():
-                ic.save()
+        for ic in image_creators.values():
+            ic.save()
 
 if __name__ == '__main__':
     PlaceAnalyzer()

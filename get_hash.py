@@ -9,7 +9,7 @@ from pandas import DataFrame
 from data_handler import DataHandler
 
 
-def get_hash(pixel: Tuple[int, int], time: int) -> Optional[str]:
+def get_hash(pixel: Tuple[int, int], time: float) -> Optional[str]:
     """
     Gets the hash for a user by checking which hash was the last one
     that changed the given pixel at the specified time.
@@ -26,7 +26,7 @@ def get_hash(pixel: Tuple[int, int], time: int) -> Optional[str]:
         return hashes[0]
 
 
-def get_hashes(pixel_times: List[Tuple[Tuple[int, int], int]]) -> List[str]:
+def get_hashes(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
     """
     Gets the hashes for users by checking which hashes were the last ones
     that changed the given pixels at the specified times.
@@ -39,7 +39,7 @@ def get_hashes(pixel_times: List[Tuple[Tuple[int, int], int]]) -> List[str]:
 
     hashes: List[str] = []
 
-    for df in DataHandler.instance().get_data_frames(reversed=True):
+    for df in DataHandler.instance().get_data_frames(reversed=True, progress_label="Searching user hash"):
         delete_indexes = []
         for i, (pixel, time) in enumerate(pixel_times):
             row = df.loc[(df["coordinate"] == f"{pixel[0]},{pixel[1]}") & (df["time"] <= time)].tail(1)

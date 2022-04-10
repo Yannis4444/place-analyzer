@@ -52,9 +52,9 @@ class ImageCreator:
         :return: The tuple
         """
 
-        return tuple(int(hex[i:i+2], 16) for i in (1, 3, 5))
+        return tuple(int(hex_color[i:i+2], 16) for i in (1, 3, 5))
 
-    def set_pixel(self, x: int, y: int, color: Tuple[int, int, int] | Tuple[int, int, int, int] | str):
+    def set_pixel(self, x: int, y: int, color):
         """
         Sets the color of a specified pixel
         :param x: The x coordinate

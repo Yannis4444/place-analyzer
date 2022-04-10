@@ -1,0 +1,49 @@
+version: "3"
+
+services:
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    ports:
+      - 3000:3000
+    networks:
+      - monitoring
+    volumes:
+      - grafana-volume:/var/lib/grafana
+
+  influxdb:
+    image: influxdb:1.8
+    container_name: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    networks:
+      - monitoring
+    volumes:
+      - influxdb-storage:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=db0
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin
+      - INFLUXDB_DATA_MAX_VALUES_PER_TAG=0
+      - INFLUXDB_DATA_MAX_SERIES_PER_DATABASE=0
+
+  chronograf:
+    image: chronograf
+    container_name: chronograf
+    restart: always
+    ports:
+      - 8888:8888
+    networks:
+      - monitoring
+    volumes:
+      - chronograf_data:/var/lib/chronograf
+
+networks:
+  monitoring:
+
+volumes:
+  grafana-volume:
+  influxdb-storage:
+  chronograf_data:
