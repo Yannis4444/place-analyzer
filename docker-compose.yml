@@ -17,7 +17,10 @@ services:
       - INFLUXDB_ADMIN_PASSWORD=admin
       - INFLUXDB_DATA_MAX_VALUES_PER_TAG=0
       - INFLUXDB_DATA_MAX_SERIES_PER_DATABASE=0
-    mem_limit: 24g
+    deploy:
+      resources:
+        limits:
+          memory: 24g
 
   chronograf:
     image: chronograf

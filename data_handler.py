@@ -122,8 +122,6 @@ class DataHandler:
         # Why not change things up and put the data in a totally random order!?
         # That seems like fun and wont annoy anyone working with the data - right?
         for i in trange(79, desc="Downloading data", mininterval=0):
-            # for i in tqdm([1, 2, 3, 5, 6, 10, 11, 8, 13, 4, 9, 15, 12, 18, 14, 16, 20, 17, 23, 19, 21, 28, 7, 29, 30, 31, 32, 33, 25, 35, 36, 27, 22, 0, 40, 41, 24, 34, 44, 37, 38, 39, 48, 43, 26, 45, 46, 47, 42, 49, 50, 55, 52, 57, 58, 54, 61, 56, 63, 53, 59, 60, 62, 51, 70, 64, 65, 66, 72, 73, 74, 75, 76, 77, 67, 69, 68, 71],
-            #               desc="Downloading data", mininterval=0):
             url = url_template.format(i)
             filename = "data/" + url.rsplit("/", 1)[-1].replace(".gzip", "")
             self.data_files[i] = filename
@@ -151,13 +149,6 @@ class DataHandler:
                 logging.error(f"Failed to download {filename}")
                 logging.exception(e)
                 exit(-1)
-
-        if new_data and self.influx_connection is not None:
-            for df in self.get_data_frames(progress_label="writing to InfluxDB"):
-                for row in df[["user_id", "pixel_color", "coordinate", "time"]].itertuples():
-                    self.influx_connection.write_pixel(row[4], row[1], row[3], row[2], write_now=False)
-
-                self.influx_connection.write_cached_points()
 
     def _str_to_time(self, time_str: str) -> float:
         """
@@ -228,7 +219,6 @@ class DataHandler:
         :return: The pandas dataframes
         """
 
-        # TODO: set text for progress bar
         for i in tqdm(list(self.data_files)[::-1] if reversed else self.data_files, desc=progress_label):
             yield self.get_data_frame(i, user_ids=user_ids, pixel=pixel, include_void=include_void, reversed=reversed)
 

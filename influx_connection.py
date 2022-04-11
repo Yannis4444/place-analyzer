@@ -41,12 +41,35 @@ class InfluxConnection:
         # create the connection
         self._client = InfluxDBClient(host=host, port=port, username=username, password=password, database=database, timeout=timeout)
 
-        # create the database and switch to it
-        if database not in self._client.get_list_database():
-            self._client.create_database(database)
-            self._client.switch_database(database)
+        while True:
+            try:
+                # create the database and switch to it
+                if database not in self._client.get_list_database():
+                    self._client.create_database(database)
+                    self._client.switch_database(database)
+                    break
+            except Exception as e:
+                logging.error(f"Failed to establish connection to InfluxDB. Trying again: {e}")
+                time.sleep(60)
 
         self._cached_measurements = []  # used for writing measurements in bulk
+
+
+    def initialize(self):
+        """
+        Gets all the data from the downloaded data files and writes it to the InfluxDB.
+        This has to be used once before using the Influx data
+        """
+
+        from data_handler import DataHandler
+
+        dh = DataHandler.instance()
+
+        for df in dh.get_data_frames(progress_label="writing to InfluxDB"):
+            for row in df[["user_id", "pixel_color", "coordinate", "time"]].itertuples():
+                self.write_pixel(row[4], row[1], row[3], row[2], write_now=(row[0] % 100000) == 99999)
+
+            self.write_cached_points()
 
     @property
     def client(self) -> Optional[InfluxDBClient]:
@@ -59,7 +82,7 @@ class InfluxConnection:
 
         return self._client
 
-    def query(self, query: str, chunk_size: Optional[int] = 10000) -> ResultSet:
+    def query(self, query: str, chunk_size: Optional[int] = 1000) -> ResultSet:
         """
         Sends a given query to the InfluxDB.
         In most cases get_data should be used
@@ -70,12 +93,14 @@ class InfluxConnection:
         :return: The queried data
         """
 
+        logging.info(f"Running query: {query}")
+
         if self._client is None:
             raise RuntimeError("The InfluxDB connection was not yet set. Please call set_connection first")
 
         return self._client.query(query, chunked=chunk_size is not None, chunk_size=chunk_size)
 
-    def str_to_time(self, time_str: str):
+    def str_to_time(self, time_str: str) -> float:
         """
         Converts a time string as used by Influx to a unix timestamp
 
@@ -83,9 +108,9 @@ class InfluxConnection:
         :return: The unix timestamp
         """
 
-        return datetime.datetime.fromisoformat(time_str).replace(tzinfo=datetime.timezone.utc).timestamp()
+        return datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc).timestamp()
 
-    def time_to_str(self, timestamp: float):
+    def time_to_str(self, timestamp: float) -> str:
         """
         Converts a unix timestamp to a time string as used by Influx
 
@@ -93,7 +118,7 @@ class InfluxConnection:
         :return: The time string
         """
 
-        return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
+        return str(datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)).rsplit("+", 1)[0]
 
     def write_pixel(self, time: float, user_id: str, pixel: str, color: str, write_now=True) -> bool:
         """
@@ -121,23 +146,39 @@ class InfluxConnection:
                 self.write_cached_points()
 
         # prepare the data to be sent to the InfluxDB
-        data = {
-            "measurement": "pixels",
+        # split into two measurements as the influxDB can't handle this otherwise
+        self._cached_measurements.append({
+            "measurement": "user_pixels",
             "tags": {
-                "user_id": user_id,
-                "x": x,
-                "y": y,
-                "color": color
+                "user_id": user_id
+                # "x": x,
+                # "y": y
+                # "color": color
             },
             "time": self.time_to_str(time),
             "fields": {
-                "pixel": pixel
-                # "color": color
+                # "pixel": pixel,
+                "x": x,
+                "y": y,
+                "color": color
                 # "user_id": user_id
             }
-        }
-
-        self._cached_measurements.append(data)
+        })
+        self._cached_measurements.append({
+            "measurement": "position_pixels",
+            "tags": {
+                # "user_id": user_id
+                "x": x,
+                "y": y
+                # "color": color
+            },
+            "time": self.time_to_str(time),
+            "fields": {
+                # "pixel": pixel,
+                "color": color,
+                "user_id": user_id
+            }
+        })
 
         if not write_now:
             return True
@@ -153,10 +194,10 @@ class InfluxConnection:
         :return: True if successful
         """
 
-        logging.info(f"Writing {len(self._cached_measurements)} cached points")
+        logging.debug(f"Writing {len(self._cached_measurements)} cached points")
 
         try:
-            result = self._client.write_points(self._cached_measurements, time_precision="ms", batch_size=10000)
+            result = self._client.write_points(self._cached_measurements, time_precision="ms", batch_size=batch_size)
         except Exception as e:
             # wait ten seconds and try again
             logging.warning(f"Writing points failed. Trying again: {e}")
@@ -165,7 +206,7 @@ class InfluxConnection:
 
         if result:
             self._cached_measurements = []
-            logging.info("Done writing points")
+            logging.debug("Done writing points")
         else:
             logging.warning("Writing points failed")
 
@@ -183,11 +224,10 @@ class InfluxConnection:
         :return: The result
         """
 
-        # TODO: use parameters
         # TODO: progress bar
 
         # start the query string
-        query = f"SELECT time, user_id, color, pixel FROM \"pixels\""
+        query = f"SELECT time, user_id, color, x, y FROM \"{'user_pixels' if pixel is None else 'position_pixels'}\""
 
         if user_ids is not None or pixel is not None or not include_void:
             query += " WHERE"
@@ -214,7 +254,6 @@ class InfluxConnection:
         if reversed:
             query += "ORDER BY time DESC"
 
-        logging.info(f"Running query: {query}")
-
-        for t, user_id, color, pixel in self.self.query(query).raw["values"]:
-            yield self.str_to_time(t), user_id, color, pixel
+        # TODO: maybe not return position as str but x and y as int
+        for t, user_id, color, x, y in self.query(query).raw["series"][0]["values"]:
+            yield self.str_to_time(t), user_id, color, f"{x},{y}"

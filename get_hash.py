@@ -60,9 +60,9 @@ def get_hashes(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
         logging.warning(f"No Hashes found for {pixel_times}")
 
     else:
-        for i, (pixel, time) in tqdm.tqdm(enumerate(pixel_times), progress_label="Searching user hash"):
+        for i, (pixel, time) in tqdm.tqdm(enumerate(pixel_times), desc="Searching user hash"):
             try:
-                hashes.append(dh.influx_connection.query(f"SELECT last(user_id) as user_id from \"pixels\" WHERE pixel='{pixel[0]},{pixel[0]}' AND time <= time").raw["values"][-1][-1])
+                hashes.append(dh.influx_connection.query(f"SELECT last(user_id) as user_id from \"position_pixels\" WHERE x = '{pixel[0]}' AND y = '{pixel[1]}' AND time <= '{dh.influx_connection.time_to_str(time)}'").raw["series"][0]["values"][-1][-1])
             except (IndexError, KeyError):
                 logging.warning(f"No Hash found for {pixel} - {pixel}")
 

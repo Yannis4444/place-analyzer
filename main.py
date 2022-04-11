@@ -17,17 +17,19 @@ class PlaceAnalyzer:
         :return: The arguments
         """
 
-        # TODO: consistent naming of hash and user id
-
         parser = argparse.ArgumentParser(
             description='A script that can analyze different aspects from r/place and create statistics for users or communities.',
             usage=f"""{sys.argv[0]} <command> [OPTIONS]
 
 Commands:
-  gethash [OPTIONS] Get the hashed identifier of a user
-                    as used in the data using a known pixel.
-  user [OPTIONS]    Analyze the activity of a user (or a
-                    group of users).
+  gethash [OPTIONS]  Get the hashed identifier of a user
+                     as used in the data using a known pixel.
+  user [OPTIONS]     Analyze the activity of a user (or a
+                     group of users).
+  influxdb [OPTIONS] If you wish to use the InfluxDB functionality,
+                     you need to execute this once before.
+                     This will get write all the data to the InfluxDB.
+                     This can take a few hours (2.5 h for me).
 """)
 
         parser.add_argument('command', help="Command to run")
@@ -41,14 +43,15 @@ Commands:
 
         getattr(self, args.command)()
 
-    def add_default_options(self, parser: argparse.ArgumentParser):
+    def add_default_options(self, parser: argparse.ArgumentParser, influxdb=False):
         """
         Adds default arguments to a parser like verbose and influx
 
         :param parser: The parser to add the options to
+        :param influxdb: Set to true to make the influx flag required
         """
 
-        parser.add_argument('-i', '--influx', required=False, help="Use InfluxDB for the data. This will greatly increase the performance. A new \"place_pixels\" database will be created. Format: user:password@host:port")
+        parser.add_argument('-i', '--influx', required=influxdb, help="Use InfluxDB for the data. This will greatly increase the performance. A new \"place_pixels\" database will be created. Format: user:password@host:port", metavar="<connection>")
         parser.add_argument('-v', '--verbose', required=False, action='count', default=0, help="Enable verbose output (-vv for debug)")
 
     def set_logging(self, verbose: int):
@@ -65,6 +68,11 @@ Commands:
         if verbose:
             logging.basicConfig(
                 level=logging.DEBUG if verbose > 1 else logging.INFO,
+                format='[%(asctime)s] %(levelname)-8s %(name)-12s %(message)s',
+            )
+        else:
+            logging.basicConfig(
+                level=logging.WARNING,
                 format='[%(asctime)s] %(levelname)-8s %(name)-12s %(message)s',
             )
 
@@ -121,19 +129,6 @@ Commands:
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
 
-        # temporary data check
-        # last_time = -1
-        # for i, df in enumerate(dh.get_data_frames()):
-        #     for row in df[["time"]].itertuples():
-        #         t = int(row[1])
-        #     # for row in pd.concat([df[["time"]].head(1), df[["time"]].tail(1)]).itertuples():
-        #         if not last_time <= t:
-        #             print(i, "FUCK", last_time, t)
-        #         # else:
-        #         #     print(i, "YAY ", last_time, t)
-        #         last_time = t
-        # exit()
-
         # get all hashes to be used
         user_ids: List[str] = args.user_id or []
         if args.pixel is not None:
@@ -143,8 +138,6 @@ Commands:
         print("Collecting data for the following user ids:")
         for user_id in user_ids:
             print(f" - {user_id}")
-
-        # TODO: weight for users -> Then this can be used for other stuff as well
 
         # the individual image creators
         image_creators = {
@@ -192,6 +185,23 @@ Commands:
 
         for ic in image_creators.values():
             ic.save()
+
+    def influxdb(self):
+        """
+        If you wish to use the InfluxDB functionality,
+        you need to execute this once before.
+        This will get write all the data to the InfluxDB.
+        This can take a few hours (2.5 h for me).
+        """
+
+        # get the options and set logging
+        parser = argparse.ArgumentParser(description='Initialize the InfluxDB functionality by writing all data to it.')
+        self.add_default_options(parser, influxdb=True)
+        args = parser.parse_args(sys.argv[2:])
+        self.set_logging(args.verbose)
+        dh = self.init_data_handler(args)
+
+        dh.influx_connection.initialize()
 
 if __name__ == '__main__':
     PlaceAnalyzer()
