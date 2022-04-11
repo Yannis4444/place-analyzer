@@ -1,7 +1,7 @@
 # r/place Analyzer
 A script that can analyze different aspects from r/place and create statistics for users or communities.
 
-# Dependencies
+## Dependencies
 
 ```
 pip install requests
@@ -11,7 +11,7 @@ pip install pillow
 pip install influxdb
 ```
 
-# Getting your User ID
+## Getting your User ID
 
 The data provided by Reddit does not include usernames.
 Instead, each user has an individual hash.
@@ -24,9 +24,9 @@ You can also use the `-p 422,1135-80:44` (`x,y-hh:mm`) for commands like `user` 
 If you do not know a pixel that you placed you can try to find your username in the [data from the Internet Archive](https://archive.org/details/place2022-opl-raw).
 Just open the data in a text editor and search for your name.
 
-# InfluxDB
+## InfluxDB
 
-## Why InfluxDB?
+### Why InfluxDB?
 
 You can optionally write the data to an InfluxDB to increase efficiency.
 This will also allow you to use InfluxQL to query for other data.
@@ -34,7 +34,7 @@ This will also allow you to use InfluxQL to query for other data.
 Querying for the pixels of one user using a known pixel can take about an hour without InfluxDB.
 Using the InfluxDB the same operation takes no longer than a second.
 
-## How to use it
+### How to use it
 
 If you do not have an existing InfluxDB available, one can easily be started using the included `docker-compose.yml`.
 If you use an existing installation, you might need to set `max-values-per-tag = 0` and
@@ -50,7 +50,7 @@ Before you can use the InfluxDB functionality, you need to initialize the data b
 Note that it will take some time to write all the data to the InfluxDB (about 2.5 h for me).
 After the initial data collection, everything will be much faster.
 
-## How it works
+### How it works
 
 Using InfluxDB with the script will create a `place_pixels` database with a `user_pixels`
 and a `position_pixels` measurement.
