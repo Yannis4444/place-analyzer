@@ -98,15 +98,36 @@ Commands:
 
         # get the options and set logging
         parser = argparse.ArgumentParser(description='Get the hash for a user by checking a specific pixel at a specific time. You will have to enter the coordinates and the time for a pixel of which you want to know the author. You can get the coordinates and the time in the canvas history here: https://www.reddit.com/r/place')
-        parser.add_argument('-p', '--pixel', required=True, type=validations.validate_pixel, help="The comma seperated coordinates of the pixel (example: \"420,69\").", metavar="<pixel>")
-        parser.add_argument('-t', '--time', required=True, type=validations.validate_time, help="Some time at which the pixel was last set by the desired user (example: \"69:42\").", metavar="<time>")
+        parser.add_argument('-p', '--pixel', required=True, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
 
-        # get the hash for the user
-        print(get_hash.get_hash(args.pixel, dh.time_to_timestamp(args.time)))
+        print(get_hash.get_hash((581, 863), 1648856791.302 + 0.1))
+
+        # get all hashes to be used
+        print("Getting user ids from known pixels")
+        user_ids = get_hash.get_hashes([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
+
+        print("\n".join(user_ids))
+
+    def get_filename(self, args: argparse.Namespace, user_id: str = None) -> str:
+        """
+        Generates a filename from the args
+        :param args: The command line args
+        :param user_id: The User Id (None for combined)
+        :return: The filename
+        """
+
+        if user_id is None:
+            user_id = "combined"
+
+        name = f"canvas_{args.background_image_opacity}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'' if args.background_black_white else '_bw'}"
+
+        return "{}/{}/{}.png".format(args.output, "".join(i for i in user_id if i not in "\\/:*?<>|"), name)
+
+
 
     def user(self):
         """
@@ -119,8 +140,9 @@ Commands:
         parser.add_argument('-u', '--user-id', required=False, type=str, action="append", help="The user-id/hash of a user to include", metavar="<user>")
         parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
         parser.add_argument('-d', '--include-void', required=False, action='count', default=0, help="Include The pixels placed as a part of the white void at the end.")
-        parser.add_argument('-o', '--output', required=False, type=str, help="A filename for the generated png image. The user id will be appended to the name if the data is not combined.", default="out/user_canvas.png")
+        parser.add_argument('-o', '--output', required=False, type=str, help="A directory for the output files.", default="out/", metavar="<dir>")
         parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
+        parser.add_argument('-c', '--background_black_white', required=False, action='count', default=0, help="Turn the background black and white.")
         parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
         parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
         parser.add_argument('-g', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
@@ -143,9 +165,10 @@ Commands:
         image_creators = {
             user_id: ImageCreator(
                 background_image=args.background_image,
+                background_black_white=args.background_black_white,
                 background_image_opacity=args.background_image_opacity,
                 background_color=args.background_color,
-                output_file="{}_{}.{}".format(args.output.rsplit(".", 1)[0], user_id, args.output.rsplit(".", 1)[1])
+                output_file=self.get_filename(args, user_id)
             ) for user_id in user_ids
         }
 
@@ -153,9 +176,10 @@ Commands:
         # combined image creator
         combined_image_creator = ImageCreator(
             background_image=args.background_image,
+            background_black_white=args.background_black_white,
             background_image_opacity=args.background_image_opacity,
             background_color=args.background_color,
-            output_file="{}_combined.{}".format(*args.output.rsplit(".", 1))
+            output_file=self.get_filename(args)
         )
 
         total_pixels = 0

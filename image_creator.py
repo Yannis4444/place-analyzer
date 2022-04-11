@@ -12,6 +12,7 @@ class ImageCreator:
     def __init__(
             self,
             background_image: Optional[str] = "resources/final_place.png",
+            background_black_white: bool = False,
             background_image_opacity: float = 0.1,
             background_color: str = "#000000",
             output_file: str = "place_out.png"
@@ -30,6 +31,7 @@ class ImageCreator:
         logging.info(f"Creating image creator: {background_image}, {background_image_opacity}, {background_color}, {output_file}")
 
         self.background_image = background_image
+        self.background_black_white = background_black_white
         self.background_image_opacity = background_image_opacity
         self.background_color = background_color
         self.output_file = output_file
@@ -40,7 +42,11 @@ class ImageCreator:
 
         if background_image is not None and background_image_opacity > 0:
             # import an image from file
-            bg = Image.open(background_image)
+            bg: Image.Image = Image.open(background_image)
+
+            if background_black_white:
+                bg = bg.convert("LA")
+                bg = bg.convert(self.image.mode)
 
             self.image = Image.blend(self.image, bg, background_image_opacity)
 
