@@ -191,14 +191,16 @@ Commands:
 
         # TODO: only if multiple
         # combined image creator
-        combined_image_creator = ImageCreator(
-            background_image=args.background_image,
-            background_black_white=args.background_black_white,
-            background_image_opacity=args.background_image_opacity,
-            background_color=args.background_color,
-            output_file=self.get_filename(args),
-            gif_length=args.gif_length
-        )
+        combined_image_creator: Optional[ImageCreator] = None
+        if len(user_ids) > 0:
+            combined_image_creator = ImageCreator(
+                background_image=args.background_image,
+                background_black_white=args.background_black_white,
+                background_image_opacity=args.background_image_opacity,
+                background_color=args.background_color,
+                output_file=self.get_filename(args),
+                gif_length=args.gif_length
+            )
 
         total_pixels = 0
         user_pixels = {user_id: 0 for user_id in user_ids}
@@ -208,7 +210,8 @@ Commands:
 
             user_pixels[user_id] += 1
 
-            combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color, time)
+            if combined_image_creator is not None:
+                combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color, time)
 
             if user_id in image_creators:
                 image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color, time)
@@ -223,13 +226,8 @@ Commands:
 
         logging.info("saving images")
 
-        for ic in tqdm([combined_image_creator] + list(image_creators.values()), desc="Saving images", mininterval=0):
+        for ic in tqdm([combined_image_creator] + list(image_creators.values() if combined_image_creator is not None else image_creators.values()), desc="Saving images", mininterval=0):
             ic.save()
-
-        # combined_image_creator.save()
-        #
-        # for ic in image_creators.values():
-        #     ic.save()
 
     def setalias(self):
         """
