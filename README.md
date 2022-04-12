@@ -143,11 +143,11 @@ python main.py user -n Yannis4444 -n <friend1> -n <friend2> -n <friend3> -i admi
 #### Pixels in the correct color
 
 ```
-python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d
+python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -t 0.05
 ```
 
 <p align="center">
-    <img alt="example" src="examples/Yannis4444/canvas_0_1_%23000000_original.png" title="share_sheet" width="800"/>
+    <img alt="example" src="examples/Yannis4444/canvas_0_05_%23000000_original.png" title="share_sheet" width="800"/>
 </p>
 
 #### Combined data as a gif
