@@ -82,7 +82,7 @@ class InfluxConnection:
 
         return self._client
 
-    def query(self, query: str, chunk_size: Optional[int] = 1000) -> ResultSet:
+    def query(self, query: str, chunk_size: Optional[int] = None) -> ResultSet:
         """
         Sends a given query to the InfluxDB.
         In most cases get_data should be used
@@ -252,7 +252,7 @@ class InfluxConnection:
 
             from data_handler import DataHandler
 
-            query += f" time <= {self.time_to_str(DataHandler.instance().void_time)}"
+            query += f" time <= '{self.time_to_str(DataHandler.instance().void_time)}'"
 
         if reversed:
             query += "ORDER BY time DESC"

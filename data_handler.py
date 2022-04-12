@@ -198,7 +198,7 @@ class DataHandler:
 
         else:
             # use Influx connection
-            for x in self.influx_connection.get_data(user_ids=user_ids, include_void=include_void, reversed=reversed, progress_label=progress_label):
+            for x in self.influx_connection.get_data(user_ids=user_ids, pixel=pixel, include_void=include_void, reversed=reversed, progress_label=progress_label):
                 yield x
 
     def get_data_frames(self, user_ids: Optional[List[str]] = None, pixel: Optional[str] = None, include_void=True, reversed=False, progress_label="Processing Data") -> Generator[DataFrame, None, None]:
