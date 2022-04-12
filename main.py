@@ -207,7 +207,6 @@ Commands:
             ) for user_id in user_ids
         }
 
-        # TODO: only if multiple
         # combined image creator
         combined_image_creator: Optional[ImageCreator] = None
         if len(user_ids) > 0:
