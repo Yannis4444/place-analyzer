@@ -24,14 +24,18 @@ class PlaceAnalyzer:
             usage=f"""{sys.argv[0]} <command> [OPTIONS]
 
 Commands:
-  gethash [OPTIONS]  Get the hashed identifier of a user as used
-                     in the data using a username or known pixel.
-  user [OPTIONS]     Analyze the activity of a user (or a
-                     group of users).
-  influxdb [OPTIONS] If you wish to use the InfluxDB functionality,
-                     you need to execute this once before.
-                     This will get write all the data to the InfluxDB.
-                     This can take a few hours (2.5 h for me).
+  gethash [OPTIONS]       Get the hashed identifier of a user as used
+                          in the data using a username or known pixel.
+  user [OPTIONS]          Analyze the activity of a user (or a
+                          group of users).
+  setalias <hash> <alias> Set the alias for a hash. This is used for filenames
+                          and outputs as well as easier queries with the
+                          -n <username> flag. Aliases are automatically set
+                          when querying by username.
+  influxdb [OPTIONS]      If you wish to use the InfluxDB functionality,
+                          you need to execute this once before.
+                          This will get write all the data to the InfluxDB.
+                          This can take a few hours (2.5 h for me).
 """)
 
         parser.add_argument('command', help="Command to run")
@@ -133,8 +137,6 @@ Commands:
 
         return "{}/{}/{}.png".format(args.output, "".join(i for i in (HashAliasHandler.instance().get_alias_from_hash(user_id) or user_id) if i not in "\\/:*?<>|"), name)
 
-
-
     def user(self):
         """
         Analyze the activity of a user (or a
@@ -206,7 +208,8 @@ Commands:
             if user_id in image_creators:
                 image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
 
-        print("-"*20)
+        print()
+        print("-" * 8, "RESULTS", "-" * 8)
         print(f"Pixels per user:")
         print("\n".join(
             f" - {user_id} ({hash_alias.get_alias_from_hash(user_id) or 'unknown'}): {n}" for user_id, n in user_pixels.items()
@@ -219,6 +222,21 @@ Commands:
 
         for ic in image_creators.values():
             ic.save()
+
+    def setalias(self):
+        """
+        Saves a given Alias
+        :return:
+        """
+
+        parser = argparse.ArgumentParser(description='Saves the given Hash under the given Alias for easier queries in the future. Querying by username does this automatically.')
+        parser.add_argument('hash', help="The user hash as found in the r/place data.")
+        parser.add_argument('alias', help="The alias for the hash. Normally this will be the Reddit username")
+        args = parser.parse_args(sys.argv[2:])
+
+        HashAliasHandler.instance().save_alias(args.hash, args.alias)
+
+        print(args.hash, args.alias)
 
     def influxdb(self):
         """
@@ -236,6 +254,7 @@ Commands:
         dh = self.init_data_handler(args)
 
         dh.influx_connection.initialize()
+
 
 if __name__ == '__main__':
     PlaceAnalyzer()
