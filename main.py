@@ -6,6 +6,7 @@ from typing import List, Optional, Dict
 import get_hash
 import validations
 from data_handler import DataHandler
+from hash_alias_handler import HashAliasHandler
 from image_creator import ImageCreator
 from username_finder import UsernameFinder
 
@@ -23,8 +24,8 @@ class PlaceAnalyzer:
             usage=f"""{sys.argv[0]} <command> [OPTIONS]
 
 Commands:
-  gethash [OPTIONS]  Get the hashed identifier of a user
-                     as used in the data using a known pixel.
+  gethash [OPTIONS]  Get the hashed identifier of a user as used
+                     in the data using a username or known pixel.
   user [OPTIONS]     Analyze the activity of a user (or a
                      group of users).
   influxdb [OPTIONS] If you wish to use the InfluxDB functionality,
@@ -130,7 +131,7 @@ Commands:
 
         name = f"canvas_{args.background_image_opacity}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'_bw' if args.background_black_white else ''}"
 
-        return "{}/{}/{}.png".format(args.output, "".join(i for i in user_id if i not in "\\/:*?<>|"), name)
+        return "{}/{}/{}.png".format(args.output, "".join(i for i in (HashAliasHandler.instance().get_alias_from_hash(user_id) or user_id) if i not in "\\/:*?<>|"), name)
 
 
 
@@ -167,8 +168,9 @@ Commands:
             user_ids += get_hash.get_hashes_by_username(args.username)
 
         print("Collecting data for the following user ids:")
+        hash_alias = HashAliasHandler.instance()
         for user_id in user_ids:
-            print(f" - {user_id}")
+            print(f" - {user_id} ({hash_alias.get_alias_from_hash(user_id) or 'unknown'})")
 
         # the individual image creators
         image_creators = {
@@ -204,11 +206,10 @@ Commands:
             if user_id in image_creators:
                 image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
 
-
         print("-"*20)
         print(f"Pixels per user:")
         print("\n".join(
-            f" - {user_id}: {n}" for user_id, n in user_pixels.items()
+            f" - {user_id} ({hash_alias.get_alias_from_hash(user_id) or 'unknown'}): {n}" for user_id, n in user_pixels.items()
         ))
         print(f"Combined number of pixels for all specified users: {total_pixels}")
 
