@@ -51,16 +51,35 @@ Commands:
 
         getattr(self, args.command)()
 
-    def add_default_options(self, parser: argparse.ArgumentParser, influxdb=False):
+    def add_default_options(self,
+                            parser: argparse.ArgumentParser,
+                            influxdb=False,
+                            hash=False,
+                            pixel=False,
+                            username=False):
         """
         Adds default arguments to a parser like verbose and influx
 
         :param parser: The parser to add the options to
         :param influxdb: Set to true to make the influx flag required
+        :param pixel: Add pixel option
+        :param username: Add username option
         """
 
-        parser.add_argument('-i', '--influx', required=influxdb, help="Use InfluxDB for the data. This will greatly increase the performance. A new \"place_pixels\" database will be created. Format: user:password@host:port", metavar="<connection>")
-        parser.add_argument('-v', '--verbose', required=False, action='count', default=0, help="Enable verbose output (-vv for debug)")
+        user_group = parser.add_argument_group("User")
+
+        if hash:
+            user_group.add_argument('-u', '--user-id', required=False, type=str, action="append", help="The hash of a user to include as found in the Reddit data.", metavar="<user>")
+        if pixel:
+            user_group.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
+        if username:
+            user_group.add_argument('-n', '--username', required=False, type=str, action="append", help="A Reddit username. If provided, the data from the Internet Archive (https://archive.org/details/place2022-opl-raw) will be searched for it and then if found the pixel will be searched in the normal data.", metavar="<name>")
+
+        parser.add_argument_group("InfluxDB")\
+            .add_argument('-i', '--influx', required=influxdb, help="Use InfluxDB for the data. This will greatly increase the performance. Format: user:password@host:port", metavar="<connection>")
+
+        parser.add_argument_group("Debug")\
+            .add_argument('-v', '--verbose', required=False, action='count', default=0, help="Enable verbose output (-vv for debug)")
 
     def set_logging(self, verbose: int):
         """
@@ -105,10 +124,8 @@ Commands:
         """
 
         # get the options and set logging
-        parser = argparse.ArgumentParser(description='Get the hash for a user by checking a specific pixel at a specific time. You will have to enter the coordinates and the time for a pixel of which you want to know the author. You can get the coordinates and the time in the canvas history here: https://www.reddit.com/r/place')
-        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
-        parser.add_argument('-n', '--username', required=False, type=str, action="append", help="A Reddit username. If provided, the data from the Internet Archive will be searched for it and then if found the pixel will be searched in the normal data.", metavar="<name>")
-        self.add_default_options(parser)
+        parser = argparse.ArgumentParser(description='Get the hash for a user by checking a specific pixel at a specific time. You will have to enter the coordinates and the time for a pixel of which you want to know the author. You can get the coordinates and the time in the canvas history here: https://www.reddit.com/r/place', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        self.add_default_options(parser, pixel=True, username=True)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
@@ -146,19 +163,20 @@ Commands:
         """
 
         # get the options and set logging
-        parser = argparse.ArgumentParser(description='Analyzes the activity of the specified users. Users can be specified using their user-id/hash (see gethash command) or using a known pixel just like gethash.')
-        parser.add_argument('-u', '--user-id', required=False, type=str, action="append", help="The user-id/hash of a user to include", metavar="<user>")
-        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
-        parser.add_argument('-n', '--username', required=False, type=str, action="append", help="A Reddit username. If provided, the data from the Internet Archive will be searched for it and then if found the pixel will be searched in the normal data.", metavar="<name>")
-        parser.add_argument('-d', '--include-void', required=False, action='count', default=0, help="Include The pixels placed as a part of the white void at the end.")
-        parser.add_argument('-o', '--output', required=False, type=str, help="A directory for the output files.", default="out/", metavar="<dir>")
-        parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
-        parser.add_argument('-c', '--background_black_white', required=False, action='count', default=0, help="Turn the background black and white.")
-        parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
-        parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
-        parser.add_argument('-r', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
-        parser.add_argument('-g', '--gif-length', required=False, type=int, help="Optional length in s of a gif to be created.", metavar="<length>")
-        self.add_default_options(parser)
+        parser = argparse.ArgumentParser(description='Analyzes the activity of the specified users. Users can be specified using their user-id/hash (see gethash command) or using a known pixel just like gethash.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        output_group = parser.add_argument_group("Output")
+        output_group.add_argument('-o', '--output', required=False, type=str, help="A directory for the output files.", default="out/", metavar="<dir>")
+        data_group = parser.add_argument_group("Data")
+        data_group.add_argument('-d', '--include-void', required=False, action='count', default=0, help="Include The pixels placed as a part of the white void at the end.")
+        visual_group = parser.add_argument_group("Visuals")
+        visual_group.add_argument('-m', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
+        visual_group.add_argument('-b', '--background_black_white', required=False, action='count', default=0, help="Turn the background black and white.")
+        visual_group.add_argument('-t', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
+        visual_group.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
+        visual_group.add_argument('-c', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
+        gif_group = parser.add_argument_group("GIF")
+        gif_group.add_argument('-g', '--gif-length', required=False, type=int, help="Optional length in s of a gif to be created.", metavar="<length>")
+        self.add_default_options(parser, hash=True, pixel=True, username=True)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
@@ -235,7 +253,7 @@ Commands:
         :return:
         """
 
-        parser = argparse.ArgumentParser(description='Saves the given Hash under the given Alias for easier queries in the future. Querying by username does this automatically.')
+        parser = argparse.ArgumentParser(description='Saves the given Hash under the given Alias for easier queries in the future. Querying by username does this automatically.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         parser.add_argument('hash', help="The user hash as found in the r/place data.")
         parser.add_argument('alias', help="The alias for the hash. Normally this will be the Reddit username")
         args = parser.parse_args(sys.argv[2:])
