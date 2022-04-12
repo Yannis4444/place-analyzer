@@ -244,7 +244,7 @@ class InfluxConnection:
             if user_ids is not None:
                 query += " AND"
 
-            query += " x = {} AND y = {}".format(*pixel.split(","))
+            query += " x = '{}' AND y = '{}'".format(*pixel.split(","))
 
         if not include_void:
             if user_ids is not None or pixel is not None:
