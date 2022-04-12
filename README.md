@@ -126,7 +126,9 @@ python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -b -t 0.05 -c
 
 The different options will work for all other examples but aren't included for all
 
-![](examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.png)
+<p align="center">
+    <img alt="example" src="examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.png" title="share_sheet" width="800"/>
+</p>
 
 #### The same as a sixty-second-long gif
 
@@ -134,7 +136,9 @@ The different options will work for all other examples but aren't included for a
 python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00" -g 60
 ```
 
-![](examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.gif)
+<p align="center">
+    <img alt="example" src="examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.gif" title="share_sheet" width="800"/>
+</p>
 
 #### Combined Data for a group of people with a colored background without data from the final void
 
@@ -142,7 +146,9 @@ python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -b -t 0.05 -c
 python main.py user -n Yannis4444 -n <friend1> -n <friend2> -n <friend3> -i admin:admin@localhost:8086 -c "#FFFF00"
 ```
 
-![](examples/combined/canvas_0_1_#000000_#FFFF00_novoid.png)
+<p align="center">
+    <img alt="example" src="examples/combined/canvas_0_1_#000000_#FFFF00_novoid.png" title="share_sheet" width="800"/>
+</p>
 
 #### Pixels in the correct color
 
@@ -150,7 +156,9 @@ python main.py user -n Yannis4444 -n <friend1> -n <friend2> -n <friend3> -i admi
 python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d
 ```
 
-![](examples/Yannis4444/canvas_0_1_#000000_original.png)
+<p align="center">
+    <img alt="example" src="examples/Yannis4444/canvas_0_1_#000000_original.png" title="share_sheet" width="800"/>
+</p>
 
 ## InfluxDB
 
