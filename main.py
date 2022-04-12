@@ -3,6 +3,8 @@ import logging
 import sys
 from typing import List, Optional, Dict
 
+from tqdm import tqdm
+
 import get_hash
 import validations
 from data_handler import DataHandler
@@ -133,7 +135,7 @@ Commands:
         if user_id is None:
             user_id = "combined"
 
-        name = f"canvas_{args.background_image_opacity}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'_bw' if args.background_black_white else ''}"
+        name = f"canvas_{str(args.background_image_opacity).replace('.', '_')}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'_bw' if args.background_black_white else ''}"
 
         return "{}/{}/{}.png".format(args.output, "".join(i for i in (HashAliasHandler.instance().get_alias_from_hash(user_id) or user_id) if i not in "\\/:*?<>|"), name)
 
@@ -154,7 +156,8 @@ Commands:
         parser.add_argument('-c', '--background_black_white', required=False, action='count', default=0, help="Turn the background black and white.")
         parser.add_argument('-a', '--background-image-opacity', required=False, type=float, help="The opacity of the background image.", default=0.1, metavar="<value>")
         parser.add_argument('-l', '--background-color', required=False, type=str, help="The color for the background.", default="#000000", metavar="<color>")
-        parser.add_argument('-g', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
+        parser.add_argument('-r', '--highlight-color', required=False, type=str, help="The color for the highlighted pixels. The color of the placed pixel is used if not specified", metavar="<color>")
+        parser.add_argument('-g', '--gif-length', required=False, type=int, help="Optional length in s of a gif to be created.", metavar="<length>")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
@@ -181,7 +184,8 @@ Commands:
                 background_black_white=args.background_black_white,
                 background_image_opacity=args.background_image_opacity,
                 background_color=args.background_color,
-                output_file=self.get_filename(args, user_id)
+                output_file=self.get_filename(args, user_id),
+                gif_length=args.gif_length
             ) for user_id in user_ids
         }
 
@@ -192,7 +196,8 @@ Commands:
             background_black_white=args.background_black_white,
             background_image_opacity=args.background_image_opacity,
             background_color=args.background_color,
-            output_file=self.get_filename(args)
+            output_file=self.get_filename(args),
+            gif_length=args.gif_length
         )
 
         total_pixels = 0
@@ -203,10 +208,10 @@ Commands:
 
             user_pixels[user_id] += 1
 
-            combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
+            combined_image_creator.set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color, time)
 
             if user_id in image_creators:
-                image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color)
+                image_creators[user_id].set_pixel(*[int(c) for c in pixel.split(",")], args.highlight_color or color, time)
 
         print()
         print("-" * 8, "RESULTS", "-" * 8)
@@ -218,10 +223,13 @@ Commands:
 
         logging.info("saving images")
 
-        combined_image_creator.save()
-
-        for ic in image_creators.values():
+        for ic in tqdm([combined_image_creator] + list(image_creators.values()), desc="Saving images", mininterval=0):
             ic.save()
+
+        # combined_image_creator.save()
+        #
+        # for ic in image_creators.values():
+        #     ic.save()
 
     def setalias(self):
         """
