@@ -21,7 +21,7 @@ One of the available options is to analyse the pixels placed by a specific user 
 
 To just get some visualizations, the following command should work.
 Note that this will take quite a while the first time as all the data has to be downloaded.
-I would also advise to take a look at the [InfluxDB](#InfluxDB) functionality below for increased efficiency.
+I would also advise to take a look at the [InfluxDB](#InfluxDB-1) functionality below for increased efficiency.
 
 ```
 python main.py user -n <username> -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00" -g 60
@@ -104,7 +104,7 @@ You have multiple options to specify a user:
 
 #### InfluxDB:
 
-- `-i <connection>`, `--influx <connection>`: Use InfluxDB for the data. This will greatly increase the performance. Format: user:password@host:port. For details see [InfluxDB](#InfluxDB)
+- `-i <connection>`, `--influx <connection>`: Use InfluxDB for the data. This will greatly increase the performance. Format: user:password@host:port. For details see [InfluxDB](#InfluxDB-1)
 
 ### Examples
 
