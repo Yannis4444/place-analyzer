@@ -106,6 +106,52 @@ You have multiple options to specify a user:
 
 - `-i <connection>`, `--influx <connection>`: Use InfluxDB for the data. This will greatly increase the performance. Format: user:password@host:port. For details see [InfluxDB](#InfluxDB)
 
+### Examples
+
+These are a few examples that I created for myself and a few friends.
+
+#### All my pixels in yellow on a black and white background
+
+```
+python main.py user -u XxWx6C5rbZCI0934WfTTaAbkAkMUn+bpUp4RHvvOBqGlV3OndgGYiQVoPLkyGiOi+UAGxez84E4o6wCndt1RpA== -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00"
+```
+or
+```
+python main.py user -p 422,1135-69:42 -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00"
+```
+or
+```
+python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00"
+```
+
+The different options will work for all other examples but aren't included for all
+
+![](examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.png)
+
+#### The same as a sixty-second-long gif
+
+```
+python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d -b -t 0.05 -c "#FFFF00" -g 60
+```
+
+![](examples/Yannis4444/canvas_0_05_#000000_#FFFF00_bw.gif)
+
+#### Combined Data for a group of people with a colored background without data from the final void
+
+```
+python main.py user -n Yannis4444 -n <friend1> -n <friend2> -n <friend3> -i admin:admin@localhost:8086 -c "#FFFF00"
+```
+
+![](examples/combined/canvas_0_1_#000000_#FFFF00_novoid.png)
+
+#### Pixels in the correct color
+
+```
+python main.py user -n Yannis4444 -i admin:admin@localhost:8086 -d
+```
+
+![](examples/Yannis4444/canvas_0_1_#000000_original.png)
+
 ## InfluxDB
 
 ### Why InfluxDB?
