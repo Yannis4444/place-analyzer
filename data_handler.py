@@ -117,8 +117,6 @@ class DataHandler:
 
         url_template = "https://placedata.reddit.com/data/canvas-history/2022_place_canvas_history-{:012d}.csv.gzip"
 
-        new_data = False
-
         # Why not change things up and put the data in a totally random order!?
         # That seems like fun and wont annoy anyone working with the data - right?
         for i in trange(79, desc="Downloading data", mininterval=0):
@@ -132,8 +130,6 @@ class DataHandler:
                 continue
 
             logging.debug(f"Downloading {filename}")
-
-            new_data = True
 
             try:
                 # download and extract

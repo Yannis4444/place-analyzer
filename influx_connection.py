@@ -108,7 +108,10 @@ class InfluxConnection:
         :return: The unix timestamp
         """
 
-        return datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc).timestamp()
+        try:
+            return datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc).timestamp()
+        except ValueError:
+            return datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc).timestamp()
 
     def time_to_str(self, timestamp: float) -> str:
         """
