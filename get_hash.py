@@ -8,9 +8,10 @@ import tqdm
 from pandas import DataFrame
 
 from data_handler import DataHandler
+from username_finder import UsernameFinder
 
 
-def get_hash(pixel: Tuple[int, int], time: float) -> Optional[str]:
+def get_hash_by_pixel(pixel: Tuple[int, int], time: float) -> Optional[str]:
     """
     Gets the hash for a user by checking which hash was the last one
     that changed the given pixel at the specified time.
@@ -22,12 +23,12 @@ def get_hash(pixel: Tuple[int, int], time: float) -> Optional[str]:
     :return: The hash (None if none is found)
     """
 
-    hashes = get_hashes([(pixel, time)])
+    hashes = get_hashes_by_pixel([(pixel, time)])
     if hashes:
         return hashes[0]
 
 
-def get_hashes(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
+def get_hashes_by_pixel(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
     """
     Gets the hashes for users by checking which hashes were the last ones
     that changed the given pixels at the specified times.
@@ -67,3 +68,16 @@ def get_hashes(pixel_times: List[Tuple[Tuple[int, int], float]]) -> List[str]:
                 logging.warning(f"No Hash found for {pixel} - {pixel}")
 
     return hashes
+
+
+def get_hashes_by_username(usernames: List[str]) -> List[str]:
+    """
+    Gets the hashes for a list of usernames by checking the data from the internet archive for placed pixels
+    and then getting the hashes for these pixels.
+
+    :param usernames: The usernames to search for
+    :return: The hashes
+    """
+
+    # add a little time to the timestamp to make sure we get the right one
+    return get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in UsernameFinder().get_pixel_times(usernames)])

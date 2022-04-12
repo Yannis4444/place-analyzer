@@ -7,6 +7,7 @@ import get_hash
 import validations
 from data_handler import DataHandler
 from image_creator import ImageCreator
+from username_finder import UsernameFinder
 
 
 class PlaceAnalyzer:
@@ -98,17 +99,21 @@ Commands:
 
         # get the options and set logging
         parser = argparse.ArgumentParser(description='Get the hash for a user by checking a specific pixel at a specific time. You will have to enter the coordinates and the time for a pixel of which you want to know the author. You can get the coordinates and the time in the canvas history here: https://www.reddit.com/r/place')
-        parser.add_argument('-p', '--pixel', required=True, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
+        parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
+        parser.add_argument('-n', '--username', required=False, type=str, action="append", help="A Reddit username. If provided, the data from the Internet Archive will be searched for it and then if found the pixel will be searched in the normal data.", metavar="<name>")
         self.add_default_options(parser)
         args = parser.parse_args(sys.argv[2:])
         self.set_logging(args.verbose)
         dh = self.init_data_handler(args)
 
-        print(get_hash.get_hash((581, 863), 1648856791.302 + 0.1))
-
-        # get all hashes to be used
-        print("Getting user ids from known pixels")
-        user_ids = get_hash.get_hashes([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
+        # get all hashes
+        user_ids: List[str] = []
+        if args.pixel is not None:
+            print("Getting user ids from known pixels")
+            user_ids += get_hash.get_hashes_by_pixel([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
+        if args.username is not None:
+            print("Getting user ids from usernames")
+            user_ids += get_hash.get_hashes_by_username(args.username)
 
         print("\n".join(user_ids))
 
@@ -123,7 +128,7 @@ Commands:
         if user_id is None:
             user_id = "combined"
 
-        name = f"canvas_{args.background_image_opacity}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'' if args.background_black_white else '_bw'}"
+        name = f"canvas_{args.background_image_opacity}_{args.background_color}_{args.highlight_color or 'original'}{'' if args.include_void else '_novoid'}{'_bw' if args.background_black_white else ''}"
 
         return "{}/{}/{}.png".format(args.output, "".join(i for i in user_id if i not in "\\/:*?<>|"), name)
 
@@ -139,6 +144,7 @@ Commands:
         parser = argparse.ArgumentParser(description='Analyzes the activity of the specified users. Users can be specified using their user-id/hash (see gethash command) or using a known pixel just like gethash.')
         parser.add_argument('-u', '--user-id', required=False, type=str, action="append", help="The user-id/hash of a user to include", metavar="<user>")
         parser.add_argument('-p', '--pixel', required=False, type=validations.validate_pixel_time, action="append", help="A known pixel and time to automatically get the user like gethash. x,y-hh:mm (example: \"420,69-69:42\").", metavar="<pixel>")
+        parser.add_argument('-n', '--username', required=False, type=str, action="append", help="A Reddit username. If provided, the data from the Internet Archive will be searched for it and then if found the pixel will be searched in the normal data.", metavar="<name>")
         parser.add_argument('-d', '--include-void', required=False, action='count', default=0, help="Include The pixels placed as a part of the white void at the end.")
         parser.add_argument('-o', '--output', required=False, type=str, help="A directory for the output files.", default="out/", metavar="<dir>")
         parser.add_argument('-b', '--background-image', required=False, type=str, help="The image to use as the background.", default="resources/final_place.png", metavar="<file>")
@@ -155,7 +161,10 @@ Commands:
         user_ids: List[str] = args.user_id or []
         if args.pixel is not None:
             print("Getting user ids from known pixels")
-            user_ids += get_hash.get_hashes([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
+            user_ids += get_hash.get_hashes_by_pixel([(p[0], dh.time_to_timestamp(p[1])) for p in args.pixel])
+        if args.username is not None:
+            print("Getting user ids from usernames")
+            user_ids += get_hash.get_hashes_by_username(args.username)
 
         print("Collecting data for the following user ids:")
         for user_id in user_ids:
@@ -185,7 +194,7 @@ Commands:
         total_pixels = 0
         user_pixels = {user_id: 0 for user_id in user_ids}
 
-        for time, user_id, color, pixel in dh.get_data(user_ids=user_ids):
+        for time, user_id, color, pixel in dh.get_data(user_ids=user_ids, include_void=args.include_void):
             total_pixels += 1
 
             user_pixels[user_id] += 1
