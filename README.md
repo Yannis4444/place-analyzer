@@ -171,6 +171,11 @@ This will also allow you to use InfluxQL to query for other data.
 Querying for the pixels of one user using a known pixel can take about an hour without InfluxDB.
 Using the InfluxDB the same operation takes no longer than a second.
 
+Furthermore, Reddit decided to make things a little more interesting by partially shuffling the data.
+Why would anybody think that it was a good idea not to sort the data?
+This can lead to some problems with timed data if you aren't using InfluxDB.
+With InfluxDB these problems are gone, as it will sort the data itself.
+
 ### How to use it
 
 If you do not have an existing InfluxDB available, one can easily be started using the included `docker-compose.yml`.
