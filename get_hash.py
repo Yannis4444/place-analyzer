@@ -61,23 +61,55 @@ def get_hashes_by_pixel(pixel_times: List[Tuple[Tuple[int, int], float]]) -> Lis
         logging.warning(f"No Hashes found for {pixel_times}")
 
     else:
-        for i, (pixel, time) in tqdm.tqdm(enumerate(pixel_times), desc="Searching user hash"):
+        for i, (pixel, time) in tqdm.tqdm(enumerate(pixel_times), desc="Searching user hash", mininterval=0):
             try:
                 hashes.append(dh.influx_connection.query(f"SELECT last(user_id) as user_id from \"position_pixels\" WHERE x = '{pixel[0]}' AND y = '{pixel[1]}' AND time <= '{dh.influx_connection.time_to_str(time)}'").raw["series"][0]["values"][-1][-1])
             except (IndexError, KeyError):
-                logging.warning(f"No Hash found for {pixel} - {pixel}")
+                logging.info(f"No Hash found for {pixel} - {time}")
 
     return hashes
 
 
-def get_hashes_by_username(usernames: List[str]) -> List[str]:
+def get_hashes_by_username(usernames: List[str], points_with_canvas_id: int = 3, points_without_canvas_id: int = 20) -> List[str]:
     """
     Gets the hashes for a list of usernames by checking the data from the internet archive for placed pixels
     and then getting the hashes for these pixels.
 
     :param usernames: The usernames to search for
+    :param points_with_canvas_id: How many points with a canvas id are needed to consider them complete
+    :param points_without_canvas_id: How many points without a canvas id are needed to consider them complete
     :return: The hashes
     """
 
+    # List with possible hashes for user
+    user_hashes: Dict[str, List[str]] = {}
+    for username, (canvas_id_pixels, other_pixels) in UsernameFinder().get_pixel_times(usernames, points_with_canvas_id=points_with_canvas_id, points_without_canvas_id=points_without_canvas_id).items():
+        # first use ones with canvas id, then without, if both incomplete use the same order
+        if len(canvas_id_pixels) >= points_with_canvas_id:
+            user_hashes[username] = get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in canvas_id_pixels])
+        elif len(other_pixels) >= points_without_canvas_id:
+            user_hashes[username] = get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in other_pixels])
+        elif canvas_id_pixels:
+            user_hashes[username] = get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in canvas_id_pixels])
+        elif other_pixels:
+            user_hashes[username] = get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in other_pixels])
+        else:
+            logging.warning(f"Could not find {username} in the Data from the Internet Archive")
+
+    final_hashes: List[str] = []
+
+    for username, hashes in user_hashes.items():
+        if not hashes:
+            print(f"Could not get hash for {username}")
+            continue
+
+        most_frequent_hash = max(set(hashes), key=hashes.count)
+
+        # warning if the number of hits is not significant
+        if hashes.count(most_frequent_hash) == 1 and len(hashes) > 1:
+            logging.warning(f"Hash for {username} is ambiguous")
+
+        final_hashes.append(most_frequent_hash)
+
     # add a little time to the timestamp to make sure we get the right one
-    return get_hashes_by_pixel([(x[0], x[1] + 0.2) for x in UsernameFinder().get_pixel_times(usernames)])
+    return final_hashes

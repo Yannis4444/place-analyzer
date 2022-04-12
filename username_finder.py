@@ -6,7 +6,7 @@ import json
 import logging
 import lzma
 import os
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 import requests
 from tqdm import tqdm
@@ -145,11 +145,39 @@ class UsernameFinder:
         Creates a new username finder
         """
 
-    def get_pixel_times(self, usernames: List[str]) -> List[Tuple[Tuple[int, int], float]]:
+    def get_pixel_times(self, usernames: List[str], points_with_canvas_id: int = 3, points_without_canvas_id: int = 20) -> Dict[str, Tuple[List[Tuple[Tuple[int, int], float]], List[Tuple[Tuple[int, int], float]]]]:
         """
         Returns times and coordinates at which pixels were placed by the given users.
 
-        :return: A list of tuples with x and y as a tuple and the timestamp
+        Multiple points are collected for each username.
+        The data sometimes doesn't include the canvas_id.
+        In this case, all possible pixels are added to
+        the List in the first postion of the tuple.
+        Once either the number of points with a canvas id reaches points_with_canvas_id
+        or the number of points without a canvas id reaches points_without_canvas_id,
+        no more pixels are collected for that username.
+        Note that there are four points added for each point without a canvas id.
+
+        :param points_with_canvas_id: How many points with a canvas id are needed to consider them complete
+        :param points_without_canvas_id: How many points without a canvas id are needed to consider them complete
+        :return: A dictionary with usernames as keys, a tuple with a list of tuples
+                 with coordinates and timestamps as values for both ones found with a canvas index and without
+                 {"<username>": (
+                        [  # coordinates with known canvas id
+                            ((x, y), timestamp),
+                            ((x, y), timestamp),
+                            ((x, y), timestamp)
+                        ],
+                        [  # coordinates without known canvas id
+                            ((x, y), timestamp),
+                            ((x, y), timestamp),
+                            ((x, y), timestamp),
+                            ((x, y), timestamp),
+                            ((x, y), timestamp),
+                            ((x, y), timestamp)
+                        ]
+                    )
+                 }
         """
 
         # TODO: try to get one with the canvas, only use other if none available (or if they are early enough)
@@ -157,7 +185,12 @@ class UsernameFinder:
 
         os.makedirs("internet_archive_data", exist_ok=True)
 
-        pixel_times: List[Tuple[Tuple[int, int], float]] = []
+        pixel_times: Dict[str, Tuple[List[Tuple[Tuple[int, int], float]], List[Tuple[Tuple[int, int], float]]]] = {
+            username: (
+                [],
+                []
+            ) for username in usernames
+        }
 
         for filename in tqdm(self.INTERNET_ARCHIVE_FILES, desc="Searching Internet Archive", mininterval=0):
             url = self.INTERNET_ARCHIVE_URL.format(filename)
@@ -195,14 +228,16 @@ class UsernameFinder:
                                 canvas: Optional[int] = None
                                 if "c" in pixel:
                                     # the canvas is included
-                                    pixel, canvas = pixel.split("c")
+                                    pixel, canvas_raw = pixel.split("c")
+                                    canvas = int(canvas_raw)
+                                # TODO: If the point was before the first expansion, add id 0
 
                                 x, y = (int(c) for c in pixel.replace("p", "").split("x"))
 
                                 if canvas is not None:
-                                    if canvas in ["1", "3"]:
+                                    if canvas in [1, 3]:
                                         x += 1000
-                                    if canvas in ["2", "3"]:
+                                    if canvas in [2, 3]:
                                         y += 1000
 
                                 if "data" in pixel_data and pixel_data["data"] is not None:
@@ -213,17 +248,24 @@ class UsernameFinder:
 
                                             if username in usernames:
                                                 logging.info(f"Found {username} in {filename}: ({x},{y}) at {pixel_time}")
-                                                pixel_times.append(((x, y), pixel_time))
-                                                usernames.remove(username)
+
+                                                if canvas is None:
+                                                    # no canvas ID -> add all four
+                                                    pixel_times[username][1].append(((x, y), pixel_time))
+                                                    pixel_times[username][1].append(((x, y + 1000), pixel_time))
+                                                    pixel_times[username][1].append(((x + 1000, y), pixel_time))
+                                                    pixel_times[username][1].append(((x + 1000, y + 1000), pixel_time))
+                                                else:
+                                                    # canvas ID is known
+                                                    pixel_times[username][0].append(((x, y), pixel_time))
+
+                                                if len(pixel_times[username][0]) >= points_with_canvas_id or len(pixel_times[username][1]) >= points_without_canvas_id:
+                                                    usernames.remove(username)
 
                                                 if not usernames:
                                                     return pixel_times
 
                             except Exception as e:
                                 logging.debug(f"Could not get pixel information from {pixel_data}: {e}")
-
-        if usernames:
-            print("Could not find the following usernames in the Data from the Internet Archive:")
-            print("\n".join([f" - {username}" for username in usernames]))
 
         return pixel_times
